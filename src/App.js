@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
-import { 
-  UploadCloud, 
-  Download, 
-  CheckCircle, 
-  Receipt, 
-  Activity, 
-  Home, 
-  Utensils, 
-  FileText, 
+import {
+  UploadCloud,
+  Download,
+  CheckCircle,
+  Receipt,
+  Activity,
+  Home,
+  Utensils,
+  FileText,
   Info,
   HelpCircle,
   Server,
-  AlertTriangle, 
-  Trash2
+  AlertTriangle,
+  Trash2,
+  ShieldCheck,
+  Globe,
+  Landmark,
+  ArrowRight,
 } from 'lucide-react';
 import { mergeAnexoJ, isinToCodPais } from './anexoJ';
-import { parseCSV, computeGains, getCountryFromIsin } from './gains';
+import { parseCSV, computeGains, getCountryFromIsin, isPortugueseIsin } from './gains';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('investimentos');
@@ -29,23 +33,24 @@ export default function App() {
   const [declarationName, setDeclarationName] = useState('');
   const [xmlError, setXmlError] = useState('');
   const [xmlWarnings, setXmlWarnings] = useState([]);
+  const [xmlReady, setXmlReady] = useState(false);
   const [efatura, setEfatura] = useState({ geral: '', saude: '', educacao: '', habitacao: '', iva: '' });
 
   const efaturaLimits = {
-    geral: { max: 250, rate: 0.35, label: "Despesas Gerais", icon: Receipt, color: "text-blue-500" },
-    saude: { max: 1000, rate: 0.15, label: "Saúde", icon: Activity, color: "text-green-500" },
-    educacao: { max: 800, rate: 0.30, label: "Educação", icon: FileText, color: "text-yellow-500" },
-    habitacao: { max: 502, rate: 0.15, label: "Habitação", icon: Home, color: "text-purple-500" },
-    iva: { max: 250, rate: 0.15 * 0.23, label: "Fatura Exigida", icon: Utensils, color: "text-orange-500" }
+    geral: { max: 250, rate: 0.35, label: 'Despesas Gerais', icon: Receipt, color: 'text-blue-500' },
+    saude: { max: 1000, rate: 0.15, label: 'Saúde', icon: Activity, color: 'text-green-500' },
+    educacao: { max: 800, rate: 0.30, label: 'Educação', icon: FileText, color: 'text-yellow-500' },
+    habitacao: { max: 502, rate: 0.15, label: 'Habitação', icon: Home, color: 'text-purple-500' },
+    iva: { max: 250, rate: 0.15 * 0.23, label: 'Fatura Exigida', icon: Utensils, color: 'text-orange-500' },
   };
 
   const processarCSV = (csvText) => {
     const { transactions, skipped } = parseCSV(csvText);
     const { realizations, unmatched } = computeGains(transactions);
-
     setProcessedGains(realizations);
     setUnmatchedSales(unmatched);
     setCorporateActions(skipped);
+    setXmlReady(false);
     setStep(3);
   };
 
@@ -64,17 +69,16 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // Folha de c\u00E1lculo para CONFER\u00CANCIA / preenchimento manual do Quadro 9.2-A (N\u00C3O import\u00E1vel).
+  // Folha de cálculo para CONFERÊNCIA / preenchimento manual do Quadro 9.2-A (NÃO importável).
   const downloadATCSV = () => {
-    let csvContent = "Pais_Fonte_Codigo;Pais_Fonte;Codigo;Data_Aquisicao;Valor_Aquisicao;Data_Realizacao;Valor_Realizacao;Despesas;ISIN;Produto\n";
-    filteredGains.forEach(g => {
+    let csvContent = 'Pais_Fonte_Codigo;Pais_Fonte;Codigo;Data_Aquisicao;Valor_Aquisicao;Data_Realizacao;Valor_Realizacao;Despesas;ISIN;Produto\n';
+    anexoJGains.forEach((g) => {
       const pais = isinToCodPais(g.isin);
-      csvContent += `${pais.code};${pais.alpha2 || getCountryFromIsin(g.isin)};${g.codigo};${g.dataAquisicao};${g.valorAquisicao.replace('.',',')};${g.dataRealizacao};${g.valorRealizacao.replace('.',',')};${g.despesas.replace('.',',')};${g.isin};"${g.produto}"\n`;
+      csvContent += `${pais.code};${pais.alpha2 || getCountryFromIsin(g.isin)};${g.codigo};${g.dataAquisicao};${g.valorAquisicao.replace('.', ',')};${g.dataRealizacao};${g.valorRealizacao.replace('.', ',')};${g.despesas.replace('.', ',')};${g.isin};"${g.produto}"\n`;
     });
-
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
     link.download = `AnexoJ_Conferencia_${taxYear}.csv`;
     link.click();
@@ -85,6 +89,7 @@ export default function App() {
     if (!file) return;
     setXmlError('');
     setXmlWarnings([]);
+    setXmlReady(false);
     const reader = new FileReader();
     reader.onload = (e) => {
       setDeclarationXml(e.target.result);
@@ -96,16 +101,17 @@ export default function App() {
   const exportAnexoJXML = () => {
     setXmlError('');
     setXmlWarnings([]);
+    setXmlReady(false);
     if (!declarationXml) {
       setXmlError('Carregue primeiro o XML da sua declaração exportado do Portal das Finanças.');
       return;
     }
-    if (filteredGains.length === 0) {
-      setXmlError(`Não há mais-valias correspondidas para ${taxYear} para incluir no Anexo J.`);
+    if (anexoJGains.length === 0) {
+      setXmlError(`Não há mais-valias de ativos estrangeiros em ${taxYear} para incluir no Anexo J.`);
       return;
     }
     try {
-      const { xml, warnings } = mergeAnexoJ(declarationXml, filteredGains);
+      const { xml, warnings } = mergeAnexoJ(declarationXml, anexoJGains);
       setXmlWarnings(warnings);
       const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -113,172 +119,251 @@ export default function App() {
       link.href = url;
       link.download = `Declaracao_AnexoJ_${taxYear}.xml`;
       link.click();
+      setXmlReady(true);
     } catch (err) {
       setXmlError(err.message || 'Não foi possível gerar o XML.');
     }
   };
 
   const updateGainCode = (id, newCode) => {
-    setProcessedGains(prev => prev.map(g => g.id === id ? { ...g, codigo: newCode } : g));
+    setProcessedGains((prev) => prev.map((g) => (g.id === id ? { ...g, codigo: newCode } : g)));
   };
 
   const removeGainRow = (id) => {
-    setProcessedGains(prev => prev.filter(g => g.id !== id));
+    setProcessedGains((prev) => prev.filter((g) => g.id !== id));
   };
 
-  const filteredGains = processedGains.filter(g => g.year === taxYear);
-  const filteredUnmatched = unmatchedSales.filter(u => u.year === taxYear);
-  const filteredCorporateActions = corporateActions.filter(c => c.year === taxYear);
+  const restart = () => {
+    setStep(1);
+    setDeclarationXml(null);
+    setDeclarationName('');
+    setXmlError('');
+    setXmlWarnings([]);
+    setXmlReady(false);
+  };
 
-  const stats = filteredGains.reduce((acc, curr) => {
-    acc.vendas += parseFloat(curr.valorRealizacao);
-    acc.compras += parseFloat(curr.valorAquisicao);
-    acc.despesas += parseFloat(curr.despesas);
-    return acc;
-  }, { vendas: 0, compras: 0, despesas: 0 });
+  const yearGains = processedGains.filter((g) => g.year === taxYear);
+  const anexoJGains = yearGains.filter((g) => !isPortugueseIsin(g.isin)); // estrangeiros -> Anexo J
+  const anexoGGains = yearGains.filter((g) => isPortugueseIsin(g.isin)); // portugueses -> Anexo G
+  const filteredUnmatched = unmatchedSales.filter((u) => u.year === taxYear);
+  const filteredCorporateActions = corporateActions.filter((c) => c.year === taxYear);
 
+  const stats = anexoJGains.reduce(
+    (acc, curr) => {
+      acc.vendas += parseFloat(curr.valorRealizacao);
+      acc.compras += parseFloat(curr.valorAquisicao);
+      acc.despesas += parseFloat(curr.despesas);
+      return acc;
+    },
+    { vendas: 0, compras: 0, despesas: 0 }
+  );
   const netGains = stats.vendas - stats.compras - stats.despesas;
 
   const getRemainingText = (key, val) => {
     const limit = efaturaLimits[key].max;
     const current = parseFloat(val) || 0;
-    if (current >= limit) return "Limite máximo atingido!";
+    if (current >= limit) return 'Limite máximo atingido!';
     const needed = (limit - current) / efaturaLimits[key].rate;
     return `Para atingir o limite, gastar aprox. ${needed.toFixed(2)}€`;
   };
 
+  const tabBtn = (id, label) =>
+    `flex-1 min-w-[110px] py-3 rounded-xl font-bold transition-all ${
+      activeTab === id ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
+    }`;
+
+  // Indicador de passos (1 Carregar -> 2 Rever -> 3 Importar)
+  const Stepper = () => {
+    const stages = [
+      { n: 1, label: 'Carregar transações' },
+      { n: 2, label: 'Rever mais-valias' },
+      { n: 3, label: 'Importar no Portal' },
+    ];
+    const current = step === 1 ? 1 : xmlReady ? 3 : 2;
+    return (
+      <div className="flex items-center justify-center gap-2 sm:gap-4 mb-8">
+        {stages.map((s, i) => (
+          <React.Fragment key={s.n}>
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
+                  current > s.n
+                    ? 'bg-green-500 text-white'
+                    : current === s.n
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-500'
+                }`}
+              >
+                {current > s.n ? <CheckCircle size={16} /> : s.n}
+              </div>
+              <span className={`text-xs font-semibold hidden sm:block ${current >= s.n ? 'text-gray-800' : 'text-gray-400'}`}>
+                {s.label}
+              </span>
+            </div>
+            {i < stages.length - 1 && <div className={`h-0.5 w-4 sm:w-10 ${current > s.n ? 'bg-green-400' : 'bg-gray-200'}`} />}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6 font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 p-4 sm:p-6 font-sans">
       <div className="max-w-4xl mx-auto">
         <header className="mb-8 text-center">
-          <h1 className="text-3xl font-extrabold text-gray-900">Assistente de IRS</h1>
-          <p className="text-gray-500 mt-2">Calculadora de Mais-Valias FIFO & Otimização do e-Fatura</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">Assistente de IRS</h1>
+          <p className="text-gray-500 mt-2 max-w-xl mx-auto">
+            Calcula as mais-valias dos seus investimentos (FIFO) e gera o <b>Anexo J</b> pronto a importar no Portal das Finanças.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4 text-xs">
+            <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
+              <ShieldCheck size={14} /> 100% local e privado
+            </span>
+            <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold">
+              <Activity size={14} /> Cálculo FIFO automático
+            </span>
+          </div>
         </header>
 
-        <div className="flex flex-wrap bg-white rounded-2xl p-1 shadow-sm border border-gray-200 mb-8">
-          <button onClick={() => setActiveTab('investimentos')} className={`flex-1 min-w-[120px] py-3 rounded-xl font-bold transition-all ${activeTab === 'investimentos' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>Mais-Valias</button>
-          <button onClick={() => setActiveTab('efatura')} className={`flex-1 min-w-[120px] py-3 rounded-xl font-bold transition-all ${activeTab === 'efatura' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>e-Fatura</button>
-          <button onClick={() => setActiveTab('instrucoes')} className={`flex-1 min-w-[120px] py-3 rounded-xl font-bold transition-all ${activeTab === 'instrucoes' ? 'bg-blue-600 text-white' : 'text-gray-600'}`}>Instruções</button>
+        <div className="flex flex-wrap gap-1 bg-white rounded-2xl p-1 shadow-sm border border-gray-200 mb-8">
+          <button onClick={() => setActiveTab('investimentos')} className={tabBtn('investimentos', 'Mais-Valias')}>Mais-Valias</button>
+          <button onClick={() => setActiveTab('efatura')} className={tabBtn('efatura', 'e-Fatura')}>e-Fatura</button>
+          <button onClick={() => setActiveTab('instrucoes')} className={tabBtn('instrucoes', 'Instruções')}>Instruções</button>
         </div>
 
         {activeTab === 'investimentos' && (
           <div className="space-y-6">
+            <Stepper />
+
             {step === 1 && (
-              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6 text-center">
-                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 text-left">
-                  <h2 className="text-lg font-bold text-blue-900 mb-2 flex items-center gap-2">
-                    <Info size={20}/> Como preparar o seu ficheiro:
-                  </h2>
-                  <p className="text-sm text-blue-800 leading-relaxed mb-4">
-                    Abra a sua conta DEGIRO, vá a <b>Atividade &gt; Transações</b>. Remova quaisquer filtros de datas (selecione desde que abriu a conta) e exporte o histórico completo para garantir que o cálculo **FIFO** encontra as compras antigas de anos anteriores!
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+                <div className="text-center">
+                  <h2 className="text-xl font-bold text-gray-800">Passo 1 — Carregue o histórico da sua corretora</h2>
+                  <p className="text-sm text-gray-500 mt-1">Um ficheiro CSV com todas as suas transações de compra e venda.</p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 text-left space-y-3">
+                  <h3 className="font-bold text-blue-900 flex items-center gap-2">
+                    <Info size={18} /> Como obter o ficheiro
+                  </h3>
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    Exemplo DEGIRO: entre na sua conta, vá a <b>Atividade &gt; Transações</b>, <b>remova os filtros de data</b>{' '}
+                    (selecione desde a abertura da conta) e exporte o histórico completo. É importante incluir tudo, para o
+                    cálculo FIFO encontrar também as compras de anos anteriores.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {['DEGIRO (Semicolon)', 'Trading 212', 'XTB'].map(b => (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {['DEGIRO', 'Trading 212', 'XTB', 'e outros'].map((b) => (
                       <span key={b} className="bg-white px-3 py-1 rounded-full border border-blue-200 text-blue-700 font-semibold text-xs">{b}</span>
                     ))}
                   </div>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-200 rounded-2xl p-12 hover:border-blue-500 transition-all cursor-pointer bg-gray-50/50" onClick={() => document.getElementById('fileInput').click()}>
-                  <UploadCloud className="mx-auto text-gray-400 mb-4" size={48} />
-                  <p className="font-bold text-gray-700 text-lg">Carregue o seu CSV de transações</p>
-                  <p className="text-xs text-gray-400 mt-1">DEGIRO, Trading 212, XTB e outros formatos de transações</p>
+                <div
+                  className="border-2 border-dashed border-gray-200 rounded-2xl p-10 sm:p-12 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer bg-gray-50/50 text-center"
+                  onClick={() => document.getElementById('fileInput').click()}
+                >
+                  <UploadCloud className="mx-auto text-blue-400 mb-4" size={48} />
+                  <p className="font-bold text-gray-700 text-lg">Arraste ou clique para carregar o CSV</p>
+                  <p className="text-xs text-gray-400 mt-1">O ficheiro nunca sai do seu computador</p>
                   <input id="fileInput" type="file" className="hidden" accept=".csv" onChange={handleFileUpload} />
                 </div>
                 {csvError && (
-                  <p className="text-sm text-red-600 font-semibold flex items-center justify-center gap-1"><AlertTriangle size={16}/> {csvError}</p>
+                  <p className="text-sm text-red-600 font-semibold flex items-center justify-center gap-1">
+                    <AlertTriangle size={16} /> {csvError}
+                  </p>
                 )}
               </div>
             )}
 
             {step === 3 && (
               <div className="space-y-6">
-                <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-5">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                        <CheckCircle className="text-green-500" /> Ficheiro analisado com sucesso!
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">Selecione o ano fiscal que pretende declarar:</p>
-                    </div>
-                    <select value={taxYear} onChange={(e) => setTaxYear(e.target.value)} className="p-3 border rounded-xl font-semibold bg-gray-50 text-gray-800 w-full md:w-auto">
-                      {['2025', '2024', '2023'].map(yr => (
-                        <option key={yr} value={yr}>Declarar Ano {yr}</option>
+                {/* Cabeçalho + seletor de ano */}
+                <div className="bg-white p-5 sm:p-6 rounded-2xl border shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                      <CheckCircle className="text-green-500" /> Passo 2 — Reveja as suas mais-valias
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">Escolha o ano que vai declarar. Verifique os valores antes de gerar o ficheiro.</p>
+                  </div>
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <span className="text-sm text-gray-500 font-medium whitespace-nowrap">Ano:</span>
+                    <select value={taxYear} onChange={(e) => setTaxYear(e.target.value)} className="flex-1 p-3 border rounded-xl font-semibold bg-gray-50 text-gray-800">
+                      {['2025', '2024', '2023'].map((yr) => (
+                        <option key={yr} value={yr}>{yr}</option>
                       ))}
                     </select>
                   </div>
+                </div>
 
-                  {/* Fluxo principal: fundir as mais-valias no XML da declaração */}
-                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 space-y-3">
-                    <h4 className="font-bold text-blue-900 flex items-center gap-2">
-                      <FileText size={18}/> Gerar XML para importar no Anexo J
-                    </h4>
-                    <p className="text-xs text-blue-800 leading-relaxed">
-                      O Portal das Finanças <b>não importa CSV</b>. Importa o XML da declaração Modelo 3 — e essa
-                      importação <b>substitui</b> toda a declaração. Por isso: no Portal, comece a declaração (com o
-                      Anexo J adicionado) e <b>grave-a num ficheiro XML</b>. Carregue-o aqui em baixo para fundirmos as
-                      suas mais-valias no Quadro 9.2-A sem perder os restantes dados, e reimporte o ficheiro gerado.
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                      <button onClick={() => document.getElementById('declInput').click()} className="flex-1 bg-white border border-blue-300 text-blue-700 font-semibold px-4 py-3 rounded-xl flex items-center gap-2 justify-center hover:bg-blue-50 transition">
-                        <UploadCloud size={18}/> {declarationName ? `XML: ${declarationName}` : 'Carregar XML da declaração'}
-                      </button>
-                      <input id="declInput" type="file" className="hidden" accept=".xml" onChange={handleDeclarationUpload} />
-                      <button onClick={exportAnexoJXML} disabled={!declarationXml} className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold px-6 py-3 rounded-xl shadow-md transition flex items-center gap-2 justify-center">
-                        <Download size={18}/> Gerar XML do Anexo J
-                      </button>
+                {/* Dashboard — Anexo J (estrangeiros) */}
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Resumo do Anexo J (ativos estrangeiros)</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="bg-white p-4 sm:p-5 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Total de Vendas</p>
+                      <p className="text-lg sm:text-xl font-extrabold text-gray-900 mt-1">{stats.vendas.toFixed(2)}€</p>
                     </div>
-
-                    {xmlError && (
-                      <p className="text-xs text-red-600 font-semibold flex items-center gap-1"><AlertTriangle size={14}/> {xmlError}</p>
-                    )}
-                    {xmlWarnings.length > 0 && (
-                      <ul className="text-xs text-amber-700 list-disc pl-5 space-y-1">
-                        {xmlWarnings.map((w, i) => <li key={i}>{w}</li>)}
-                      </ul>
-                    )}
-                  </div>
-
-                  {/* Alternativa: folha de cálculo para conferência / preenchimento manual */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 border-t pt-4">
-                    <span>Prefere conferir os valores ou preencher à mão? Exporte uma folha de cálculo.</span>
-                    <button onClick={downloadATCSV} className="text-gray-700 font-semibold hover:underline flex items-center gap-1 whitespace-nowrap">
-                      <Download size={14}/> Folha de cálculo (CSV)
-                    </button>
+                    <div className="bg-white p-4 sm:p-5 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Custo de Compra (FIFO)</p>
+                      <p className="text-lg sm:text-xl font-extrabold text-gray-900 mt-1">{stats.compras.toFixed(2)}€</p>
+                    </div>
+                    <div className="bg-white p-4 sm:p-5 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Despesas</p>
+                      <p className="text-lg sm:text-xl font-extrabold text-gray-900 mt-1">{stats.despesas.toFixed(2)}€</p>
+                    </div>
+                    <div className={`p-4 sm:p-5 rounded-2xl border text-center ${netGains >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Mais-Valia Líquida</p>
+                      <p className={`text-lg sm:text-xl font-extrabold mt-1 ${netGains >= 0 ? 'text-green-600' : 'text-red-600'}`}>{netGains.toFixed(2)}€</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Dashboard Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white p-5 rounded-2xl border text-center">
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Vendas Correspondidas</p>
-                    <p className="text-xl font-extrabold text-gray-900 mt-1">{stats.vendas.toFixed(2)}€</p>
+                {/* Ativos portugueses -> Anexo G (excluídos do Anexo J) */}
+                {anexoGGains.length > 0 && (
+                  <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl space-y-3">
+                    <h4 className="font-bold text-indigo-900 flex items-center gap-2">
+                      <Landmark size={20} /> {anexoGGains.length} ativo(s) português(es) — vão para o Anexo G, não o Anexo J
+                    </h4>
+                    <p className="text-xs text-indigo-800 leading-relaxed">
+                      O <b>Anexo J é só para rendimentos do estrangeiro</b>. Estes ativos têm ISIN português (PT…), por isso
+                      <b> foram excluídos do ficheiro XML</b> e o Portal recusaria a "País da Fonte". Declare estas
+                      mais-valias <b>manualmente no Anexo G</b> (Quadro 9).
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-indigo-900 bg-white/60 rounded-xl overflow-hidden mt-1">
+                        <thead>
+                          <tr className="bg-indigo-100 font-semibold text-indigo-800 border-b border-indigo-200">
+                            <th className="p-2">Ativo / ISIN</th>
+                            <th className="p-2">Compra</th>
+                            <th className="p-2">Venda</th>
+                            <th className="p-2">Despesas</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-indigo-100">
+                          {anexoGGains.map((g) => (
+                            <tr key={g.id}>
+                              <td className="p-2 font-medium">{g.produto}<span className="block text-[10px] text-indigo-500 font-mono">{g.isin}</span></td>
+                              <td className="p-2">{g.dataAquisicao} · {g.valorAquisicao}€</td>
+                              <td className="p-2">{g.dataRealizacao} · {g.valorRealizacao}€</td>
+                              <td className="p-2 font-bold">{g.despesas}€</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="bg-white p-5 rounded-2xl border text-center">
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Custo Aquisição (FIFO)</p>
-                    <p className="text-xl font-extrabold text-gray-900 mt-1">{stats.compras.toFixed(2)}€</p>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl border text-center">
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Despesas Deduções</p>
-                    <p className="text-xl font-extrabold text-gray-900 mt-1">{stats.despesas.toFixed(2)}€</p>
-                  </div>
-                  <div className={`p-5 rounded-2xl border text-center ${netGains >= 0 ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'}`}>
-                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Mais-valias Líquidas</p>
-                    <p className={`text-xl font-extrabold mt-1 ${netGains >= 0 ? 'text-green-600' : 'text-red-600'}`}>{netGains.toFixed(2)}€</p>
-                  </div>
-                </div>
+                )}
 
-                {/* Aviso: possíveis eventos societários (splits/fusões) que afetam o FIFO */}
+                {/* Aviso: eventos societários (splits/fusões) */}
                 {filteredCorporateActions.length > 0 && (
                   <div className="bg-orange-50 border border-orange-200 p-5 rounded-2xl space-y-2">
                     <h4 className="font-bold text-orange-800 flex items-center gap-2">
-                      <AlertTriangle size={20}/> {filteredCorporateActions.length} movimento(s) sem preço detetado(s) em {taxYear}
+                      <AlertTriangle size={20} /> {filteredCorporateActions.length} movimento(s) sem preço em {taxYear}
                     </h4>
                     <p className="text-xs text-orange-700 leading-relaxed">
-                      Estes movimentos têm quantidade mas não têm preço/valor — costumam ser <b>splits, fusões ou outros
-                      eventos societários</b>. Não entram no cálculo FIFO, mas <b>alteram o número de ações</b> e podem
-                      enviesar os custos de aquisição. Verifique manualmente os ativos afetados:
+                      Têm quantidade mas não têm preço — costumam ser <b>splits, fusões ou outros eventos societários</b>.
+                      Não entram no cálculo FIFO, mas <b>alteram o número de ações</b> e podem afetar os custos. Verifique os
+                      ativos afetados:
                     </p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs text-orange-900 bg-white/50 rounded-xl overflow-hidden mt-1">
@@ -292,7 +377,7 @@ export default function App() {
                         <tbody className="divide-y divide-orange-100">
                           {filteredCorporateActions.map((c, i) => (
                             <tr key={i}>
-                              <td className="p-2 font-medium">{c.product} <span className="block text-[10px] text-orange-600 font-mono">{c.isin}</span></td>
+                              <td className="p-2 font-medium">{c.product}<span className="block text-[10px] text-orange-600 font-mono">{c.isin}</span></td>
                               <td className="p-2">{c.date}</td>
                               <td className="p-2 font-bold">{c.qty}</td>
                             </tr>
@@ -303,31 +388,33 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Warnings Section for missing Purchases (FIFO) */}
+                {/* Aviso: vendas sem compra correspondente */}
                 {filteredUnmatched.length > 0 && (
                   <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl space-y-3">
                     <h4 className="font-bold text-amber-800 flex items-center gap-2">
-                      <AlertTriangle size={20}/> Atenção: {filteredUnmatched.length} Vendas Não Declaradas por falta de Histórico de Compra
+                      <AlertTriangle size={20} /> {filteredUnmatched.length} venda(s) sem compra correspondente
                     </h4>
                     <p className="text-xs text-amber-700 leading-relaxed">
-                      Detetámos vendas de ativos em {taxYear} para as quais **não foi encontrada nenhuma compra correspondente** neste ficheiro (provavelmente porque comprou esses ativos antes de {taxYear}). Para declarar estas mais-valias, volte a exportar o ficheiro CSV da DEGIRO desde a **abertura da conta** para carregar todo o seu histórico.
+                      Vendas em {taxYear} para as quais <b>não foi encontrada a compra</b> neste ficheiro (provavelmente
+                      comprou antes de {taxYear}). <b>Volte a exportar o CSV desde a abertura da conta</b> para incluir todo o
+                      histórico — caso contrário estas mais-valias ficam por declarar.
                     </p>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs text-amber-900 bg-white/50 rounded-xl overflow-hidden mt-2">
+                      <table className="w-full text-left text-xs text-amber-900 bg-white/50 rounded-xl overflow-hidden mt-1">
                         <thead>
                           <tr className="bg-amber-100 font-semibold text-amber-800 border-b border-amber-200">
                             <th className="p-2">Ativo / ISIN</th>
                             <th className="p-2">Data da Venda</th>
-                            <th className="p-2">Quant. Vendida</th>
-                            <th className="p-2">Valor Estimado (Venda)</th>
+                            <th className="p-2">Quant.</th>
+                            <th className="p-2">Valor</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-amber-100">
-                          {filteredUnmatched.map(u => (
+                          {filteredUnmatched.map((u) => (
                             <tr key={u.id}>
-                              <td className="p-2 font-medium">{u.produto} <span className="block text-[10px] text-amber-600 font-mono">{u.isin}</span></td>
+                              <td className="p-2 font-medium">{u.produto}<span className="block text-[10px] text-amber-600 font-mono">{u.isin}</span></td>
                               <td className="p-2">{u.dataRealizacao}</td>
-                              <td className="p-2">{u.qtyNaoCorrespondida} / {u.qtyVendida} un.</td>
+                              <td className="p-2">{u.qtyNaoCorrespondida} / {u.qtyVendida}</td>
                               <td className="p-2 font-bold">{u.valorNaoCorrespondido}€</td>
                             </tr>
                           ))}
@@ -337,64 +424,128 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Transaction Matches List */}
+                {/* Tabela de transações do Anexo J */}
                 <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
                   <div className="p-5 border-b flex justify-between items-center">
-                    <h4 className="font-bold text-gray-800">Transações Declaradas no Anexo J ({filteredGains.length})</h4>
-                    <button onClick={() => setStep(1)} className="text-sm text-red-500 font-semibold hover:underline">Reiniciar e Carregar Outro</button>
+                    <h4 className="font-bold text-gray-800">Linhas do Anexo J ({anexoJGains.length})</h4>
+                    <button onClick={restart} className="text-sm text-red-500 font-semibold hover:underline">Carregar outro ficheiro</button>
                   </div>
 
-                  {filteredGains.length === 0 ? (
+                  {anexoJGains.length === 0 ? (
                     <div className="p-8 text-center text-gray-400">
                       <AlertTriangle className="mx-auto mb-2 text-yellow-500" />
-                      Sem transações de venda correspondidas para o ano {taxYear}.
+                      Sem mais-valias de ativos estrangeiros para {taxYear}.
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b">
-                            <th className="p-4">Ativo / ISIN</th>
-                            <th className="p-4">Aquisição (Data/€)</th>
+                            <th className="p-4">Ativo / País</th>
+                            <th className="p-4">Compra (Data/€)</th>
                             <th className="p-4">Venda (Data/€)</th>
                             <th className="p-4">Despesas</th>
-                            <th className="p-4">Código IRS</th>
-                            <th className="p-4 text-center">Ações</th>
+                            <th className="p-4">Código</th>
+                            <th className="p-4 text-center">Remover</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y text-sm text-gray-700">
-                          {filteredGains.map((g) => (
-                            <tr key={g.id} className="hover:bg-gray-50/50">
-                              <td className="p-4 font-medium">
-                                <div className="max-w-[150px] truncate font-bold text-gray-800" title={g.produto}>{g.produto}</div>
-                                <div className="text-xs text-gray-400 font-mono">{g.isin}</div>
-                              </td>
-                              <td className="p-4">
-                                <span className="text-xs text-gray-400 block">{g.dataAquisicao}</span>
-                                <span className="font-semibold">{g.valorAquisicao}€</span>
-                              </td>
-                              <td className="p-4">
-                                <span className="text-xs text-gray-400 block">{g.dataRealizacao}</span>
-                                <span className="font-semibold">{g.valorRealizacao}€</span>
-                              </td>
-                              <td className="p-4 font-semibold text-gray-600">{g.despesas}€</td>
-                              <td className="p-4">
-                                <select value={g.codigo} onChange={(e) => updateGainCode(g.id, e.target.value)} className="p-1.5 border rounded-lg bg-gray-50 text-xs font-bold text-gray-700">
-                                  <option value="G01">G01 (Ações)</option>
-                                  <option value="G20">G20 (ETFs/Fundos)</option>
-                                </select>
-                              </td>
-                              <td className="p-4 text-center">
-                                <button onClick={() => removeGainRow(g.id)} className="text-red-500 hover:text-red-700 p-1">
-                                  <Trash2 size={16} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {anexoJGains.map((g) => {
+                            const pais = isinToCodPais(g.isin);
+                            return (
+                              <tr key={g.id} className="hover:bg-gray-50/50">
+                                <td className="p-4 font-medium">
+                                  <div className="max-w-[160px] truncate font-bold text-gray-800" title={g.produto}>{g.produto}</div>
+                                  <div className="text-xs text-gray-400 font-mono flex items-center gap-1">
+                                    <Globe size={11} className={pais.known ? 'text-blue-400' : 'text-red-400'} />
+                                    {pais.alpha2 || '??'} <span className="text-gray-300">·</span> {g.isin}
+                                  </div>
+                                </td>
+                                <td className="p-4">
+                                  <span className="text-xs text-gray-400 block">{g.dataAquisicao}</span>
+                                  <span className="font-semibold">{g.valorAquisicao}€</span>
+                                </td>
+                                <td className="p-4">
+                                  <span className="text-xs text-gray-400 block">{g.dataRealizacao}</span>
+                                  <span className="font-semibold">{g.valorRealizacao}€</span>
+                                </td>
+                                <td className="p-4 font-semibold text-gray-600">{g.despesas}€</td>
+                                <td className="p-4">
+                                  <select value={g.codigo} onChange={(e) => updateGainCode(g.id, e.target.value)} className="p-1.5 border rounded-lg bg-gray-50 text-xs font-bold text-gray-700">
+                                    <option value="G01">G01 (Ações)</option>
+                                    <option value="G20">G20 (ETFs/Fundos)</option>
+                                  </select>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <button onClick={() => removeGainRow(g.id)} className="text-red-400 hover:text-red-600 p-1" title="Remover linha">
+                                    <Trash2 size={16} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
                   )}
+                </div>
+
+                {/* Passo 3 — gerar XML */}
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 sm:p-6 space-y-4">
+                  <h4 className="font-bold text-blue-900 text-lg flex items-center gap-2">
+                    <FileText size={20} /> Passo 3 — Gere e importe o Anexo J
+                  </h4>
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    O Portal das Finanças <b>não aceita CSV</b> — só o ficheiro XML da sua declaração. Por isso juntamos as
+                    mais-valias à <b>sua</b> declaração, sem mexer no resto:
+                  </p>
+
+                  <ol className="space-y-3">
+                    {[
+                      <>No Portal, abra a sua declaração de IRS, <b>adicione o Anexo J (deixe-o vazio)</b> e clique em <b>Gravar</b> para descarregar o ficheiro <b>.xml</b>.</>,
+                      <>Aqui em baixo, <b>carregue esse .xml</b> e clique em <b>Gerar XML do Anexo J</b>.</>,
+                      <>No Portal, escolha <b>"Leitura de uma declaração gravada num ficheiro"</b>, importe o ficheiro gerado, e use <b>Validar</b> e <b>Simular</b> antes de submeter.</>,
+                    ].map((txt, i) => (
+                      <li key={i} className="flex gap-3 text-sm text-blue-900">
+                        <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">{i + 1}</span>
+                        <span className="leading-relaxed">{txt}</span>
+                      </li>
+                    ))}
+                  </ol>
+
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch pt-1">
+                    <button onClick={() => document.getElementById('declInput').click()} className="flex-1 bg-white border-2 border-blue-300 text-blue-700 font-semibold px-4 py-3 rounded-xl flex items-center gap-2 justify-center hover:bg-blue-50 transition">
+                      <UploadCloud size={18} /> {declarationName ? `✓ ${declarationName}` : '1. Carregar XML da declaração'}
+                    </button>
+                    <input id="declInput" type="file" className="hidden" accept=".xml" onChange={handleDeclarationUpload} />
+                    <ArrowRight className="hidden sm:block text-blue-300 self-center shrink-0" size={20} />
+                    <button onClick={exportAnexoJXML} disabled={!declarationXml} className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold px-6 py-3 rounded-xl shadow-md transition flex items-center gap-2 justify-center">
+                      <Download size={18} /> 2. Gerar XML do Anexo J
+                    </button>
+                  </div>
+
+                  {xmlReady && !xmlError && (
+                    <p className="text-sm text-green-700 font-semibold flex items-center gap-1 bg-green-50 border border-green-200 rounded-lg p-3">
+                      <CheckCircle size={16} /> Ficheiro gerado! Importe <b>Declaracao_AnexoJ_{taxYear}.xml</b> no Portal e valide.
+                    </p>
+                  )}
+                  {xmlError && (
+                    <p className="text-sm text-red-600 font-semibold flex items-center gap-1"><AlertTriangle size={16} /> {xmlError}</p>
+                  )}
+                  {xmlWarnings.length > 0 && (
+                    <ul className="text-xs text-amber-700 list-disc pl-5 space-y-1 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      {xmlWarnings.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs text-blue-700/70 border-t border-blue-200 pt-3">
+                    <span>Prefere conferir à parte? Exporte uma folha de cálculo (não importável).</span>
+                    <button onClick={downloadATCSV} className="font-semibold hover:underline flex items-center gap-1 whitespace-nowrap">
+                      <Download size={14} /> Folha de cálculo (CSV)
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -404,17 +555,17 @@ export default function App() {
         {activeTab === 'efatura' && (
           <div className="space-y-4">
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 flex items-start gap-2">
-              <Info size={16} className="mt-0.5 shrink-0"/>
+              <Info size={16} className="mt-0.5 shrink-0" />
               <span>
-                Estimativa indicativa. Os limites e taxas de dedução do e-Fatura podem variar por ano fiscal e
-                dependem do agregado familiar. Confirme sempre os valores oficiais no Portal das Finanças.
+                Estimativa indicativa. Os limites e taxas de dedução do e-Fatura variam por ano fiscal e dependem do agregado
+                familiar. Confirme sempre os valores oficiais no Portal das Finanças.
               </span>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               {Object.entries(efaturaLimits).map(([key, data]) => (
                 <div key={key} className="bg-white p-5 rounded-2xl border shadow-sm">
-                  <h3 className="font-bold flex items-center gap-2 mb-3"><data.icon size={20} className={data.color}/> {data.label}</h3>
-                  <input type="number" onChange={(e) => setEfatura({...efatura, [key]: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="Valor atual (€)" />
+                  <h3 className="font-bold flex items-center gap-2 mb-3"><data.icon size={20} className={data.color} /> {data.label}</h3>
+                  <input type="number" onChange={(e) => setEfatura({ ...efatura, [key]: e.target.value })} className="w-full p-2 border rounded-lg" placeholder="Valor atual (€)" />
                   <p className="text-xs text-gray-500 mt-2 font-medium">{getRemainingText(key, efatura[key])}</p>
                 </div>
               ))}
@@ -423,32 +574,47 @@ export default function App() {
         )}
 
         {activeTab === 'instrucoes' && (
-          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-8">
-            <section>
-              <h2 className="text-2xl font-bold flex items-center gap-2 mb-4"><HelpCircle className="text-blue-600"/> Como utilizar</h2>
-              <ul className="list-decimal pl-6 space-y-2 text-gray-700">
-                <li>No separador <b>Mais-Valias</b>, importe o ficheiro de histórico da sua corretora.</li>
-                <li>O sistema processará as transações automaticamente calculando os pares de compra e venda usando o critério **FIFO** regulamentado pela AT.</li>
-                <li>Selecione o ano da declaração para filtrar as mais-valias obtidas nesse ano.</li>
-                <li>Verifique os dados na tabela e ajuste os códigos dos ativos se necessário (G01 para ações normais, G20 para Fundos/ETFs).</li>
-                <li>No Portal das Finanças, inicie a declaração de IRS, <b>adicione o Anexo J</b> e <b>grave-a num ficheiro XML</b> (botão "Gravar").</li>
-                <li>Carregue esse XML nesta aplicação e clique em <b>Gerar XML do Anexo J</b>: as suas mais-valias são fundidas no Quadro 9.2-A sem alterar os restantes dados.</li>
-                <li>No Portal, <b>importe o XML gerado</b>. ⚠️ A importação substitui a declaração atual — por isso é que partimos sempre do seu próprio ficheiro exportado.</li>
-                <li>Confira o Quadro 9.2-A do Anexo J e o país da fonte de cada linha antes de submeter.</li>
-              </ul>
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm">
+              <h2 className="text-2xl font-bold flex items-center gap-2 mb-6"><HelpCircle className="text-blue-600" /> Como funciona, passo a passo</h2>
+              <div className="space-y-4">
+                {[
+                  { t: 'Exporte as transações da corretora', d: 'No separador Mais-Valias, carregue o CSV com o histórico completo (desde a abertura da conta). DEGIRO, Trading 212, XTB e outros.' },
+                  { t: 'A app calcula as mais-valias (FIFO)', d: 'As compras e vendas são emparelhadas pelo critério FIFO da AT. Escolha o ano a declarar e confirme os valores na tabela.' },
+                  { t: 'Ativos portugueses vão para o Anexo G', d: 'O Anexo J é só para o estrangeiro. Ativos com ISIN PT… são separados e devem ser declarados no Anexo G (a app avisa-o).' },
+                  { t: 'Prepare a declaração no Portal', d: 'No Portal das Finanças, inicie o IRS, adicione o Anexo J (vazio) e grave a declaração num ficheiro XML ("Gravar").' },
+                  { t: 'Gere o XML e importe', d: 'Carregue esse XML na app e clique em "Gerar XML do Anexo J". As mais-valias são fundidas no Quadro 9.2-A sem alterar o resto. Importe o ficheiro gerado no Portal.' },
+                  { t: 'Valide e simule antes de submeter', d: 'No Portal, use "Validar" e "Simular" para confirmar que está tudo certo. Confira o país da fonte de cada linha.' },
+                ].map((s, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center">{i + 1}</div>
+                    <div>
+                      <h3 className="font-bold text-gray-800">{s.t}</h3>
+                      <p className="text-sm text-gray-600 leading-relaxed">{s.d}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 flex items-start gap-2">
+                <Info size={16} className="mt-0.5 shrink-0" />
+                <span><b>Porque preciso do meu XML?</b> A importação no Portal substitui a declaração inteira. Por isso partimos do <b>seu</b> ficheiro — assim o salário e os outros rendimentos mantêm-se, e só acrescentamos o Anexo J.</span>
+              </div>
               <p className="text-xs text-gray-400 mt-4">
-                Esta ferramenta é um auxiliar de cálculo e não constitui aconselhamento fiscal. Confirme sempre os
-                valores antes de submeter a declaração.
+                Esta ferramenta é um auxiliar de cálculo e <b>não constitui aconselhamento fiscal</b>. Confirme sempre os valores antes de submeter.
               </p>
-            </section>
+            </div>
 
-            <section className="bg-gray-100 p-6 rounded-2xl">
-              <h3 className="font-bold text-lg flex items-center gap-2 mb-4"><Server className="text-blue-600"/> Arquitetura do software</h3>
-              <p className="text-gray-700 mb-2">Este software opera a 100% no seu browser local (Client-Side).</p>
-              <p className="text-sm text-gray-500">Nenhum dado financeiro ou ficheiro é enviado para qualquer servidor externo. O processamento dos dados e a geração do ficheiro final para o anexo J são realizados inteiramente na sua máquina local de forma anónima e segura.</p>
-            </section>
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm">
+              <h3 className="font-bold text-lg flex items-center gap-2 mb-3"><Server className="text-blue-600" /> Privacidade</h3>
+              <p className="text-gray-700 mb-2">A aplicação corre <b>100% no seu browser</b>.</p>
+              <p className="text-sm text-gray-500">Nenhum ficheiro ou dado financeiro é enviado para qualquer servidor. O cálculo e a geração do XML acontecem inteiramente na sua máquina.</p>
+            </div>
           </div>
         )}
+
+        <footer className="text-center text-xs text-gray-400 mt-10 pb-4">
+          Auxiliar de cálculo — não constitui aconselhamento fiscal. Os seus dados nunca saem do seu computador.
+        </footer>
       </div>
     </div>
   );

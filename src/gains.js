@@ -6,6 +6,10 @@ export const getCountryFromIsin = (isin) => {
   return isin.substring(0, 2).toUpperCase();
 };
 
+// Ativos portugueses (ISIN começado por PT) são rendimento de fonte nacional: pertencem ao
+// Anexo G, não ao Anexo J (que é só para rendimentos obtidos no estrangeiro).
+export const isPortugueseIsin = (isin) => getCountryFromIsin(isin) === 'PT';
+
 export const getTaxCode = (productName, isin) => {
   if (!productName && !isin) return 'G01';
   const name = (productName || '').toLowerCase();

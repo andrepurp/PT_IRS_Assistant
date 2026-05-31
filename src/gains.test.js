@@ -1,4 +1,4 @@
-import { parseCSV, computeGains, isSell, getTaxCode, parseDate } from './gains';
+import { parseCSV, computeGains, isSell, getTaxCode, parseDate, isPortugueseIsin } from './gains';
 
 const seqId = () => {
   let n = 0;
@@ -101,6 +101,12 @@ test('parseCSV flags quantity-only rows as corporate actions (splits/mergers)', 
 test('getTaxCode classifies ETFs/funds as G20 and shares as G01', () => {
   expect(getTaxCode('iShares Core MSCI World UCITS ETF', 'IE00B4L5Y983')).toBe('G20');
   expect(getTaxCode('Apple Inc', 'US0378331005')).toBe('G01');
+});
+
+test('isPortugueseIsin detects PT-registered securities (Anexo G, not J)', () => {
+  expect(isPortugueseIsin('PTGAL0AM0009')).toBe(true);
+  expect(isPortugueseIsin('US0378331005')).toBe(false);
+  expect(isPortugueseIsin('IE00B4L5Y983')).toBe(false);
 });
 
 test('parseDate normalises DD-MM-YYYY and ignores time component', () => {
