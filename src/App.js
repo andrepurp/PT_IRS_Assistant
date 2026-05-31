@@ -17,9 +17,11 @@ import {
   Globe,
   Landmark,
   ArrowRight,
+  Wallet,
 } from 'lucide-react';
 import { mergeAnexoJ, isinToCodPais } from './anexoJ';
 import { parseCSV, computeGains, getCountryFromIsin, isPortugueseIsin } from './gains';
+import { calcSalario, TABELA_2026_I } from './salario';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('investimentos');
@@ -35,6 +37,9 @@ export default function App() {
   const [xmlWarnings, setXmlWarnings] = useState([]);
   const [xmlReady, setXmlReady] = useState(false);
   const [efatura, setEfatura] = useState({ geral: '', saude: '', educacao: '', habitacao: '', iva: '' });
+  const [salBruto, setSalBruto] = useState('');
+  const [salDeps, setSalDeps] = useState('0');
+  const [salSit, setSalSit] = useState('solteiro');
 
   const efaturaLimits = {
     geral: { max: 250, rate: 0.35, label: 'Despesas Gerais', icon: Receipt, color: 'text-blue-500' },
@@ -193,6 +198,12 @@ export default function App() {
     return `Para atingir o limite, gastar aprox. ${needed.toFixed(2)}€`;
   };
 
+  const salDisponivel = salSit === 'solteiro' || salSit === 'casado2';
+  const salResult =
+    salBruto && salDisponivel && parseFloat(salBruto) > 0
+      ? calcSalario(parseFloat(salBruto), TABELA_2026_I, salSit === 'casado2' ? parseInt(salDeps, 10) || 0 : 0)
+      : null;
+
   const tabBtn = (id, label) =>
     `flex-1 min-w-[110px] py-3 rounded-xl font-bold transition-all ${
       activeTab === id ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
@@ -252,9 +263,10 @@ export default function App() {
         </header>
 
         <div className="flex flex-wrap gap-1 bg-white rounded-2xl p-1 shadow-sm border border-gray-200 mb-8">
-          <button onClick={() => setActiveTab('investimentos')} className={tabBtn('investimentos', 'Mais-Valias')}>Mais-Valias</button>
-          <button onClick={() => setActiveTab('efatura')} className={tabBtn('efatura', 'e-Fatura')}>e-Fatura</button>
-          <button onClick={() => setActiveTab('instrucoes')} className={tabBtn('instrucoes', 'Instruções')}>Instruções</button>
+          <button onClick={() => setActiveTab('investimentos')} className={tabBtn('investimentos')}>Mais-Valias</button>
+          <button onClick={() => setActiveTab('salario')} className={tabBtn('salario')}>Salário Líquido</button>
+          <button onClick={() => setActiveTab('efatura')} className={tabBtn('efatura')}>e-Fatura</button>
+          <button onClick={() => setActiveTab('instrucoes')} className={tabBtn('instrucoes')}>Instruções</button>
         </div>
 
         {activeTab === 'investimentos' && (
@@ -580,6 +592,79 @@ export default function App() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'salario' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 justify-center"><Wallet className="text-blue-600" /> Salário Líquido</h2>
+                <p className="text-sm text-gray-500 mt-1">Do vencimento bruto ao líquido: Segurança Social + retenção de IRS ({TABELA_2026_I.ano}, Continente).</p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Vencimento bruto mensal</label>
+                  <div className="relative mt-1">
+                    <input type="number" value={salBruto} onChange={(e) => setSalBruto(e.target.value)} placeholder="1500" className="w-full p-3 border rounded-xl font-semibold pr-8" />
+                    <span className="absolute right-3 top-3.5 text-gray-400 font-semibold">€</span>
+                  </div>
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Situação</label>
+                  <select value={salSit} onChange={(e) => setSalSit(e.target.value)} className="w-full mt-1 p-3 border rounded-xl font-semibold bg-gray-50 text-gray-800">
+                    <option value="solteiro">Não casado, sem dependentes</option>
+                    <option value="casado2">Casado, dois titulares</option>
+                    <option value="solteiro_dep">Não casado, com dependentes — em breve</option>
+                    <option value="casado1">Casado, único titular — em breve</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Dependentes</label>
+                  <input type="number" min="0" value={salDeps} onChange={(e) => setSalDeps(e.target.value)} disabled={salSit !== 'casado2'} className="w-full mt-1 p-3 border rounded-xl font-semibold disabled:bg-gray-100 disabled:text-gray-400" />
+                </div>
+              </div>
+
+              {!salDisponivel && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
+                  <Info size={16} /> Esta situação usa a Tabela II/III, que ainda não está incluída. Para já, suporta "não casado sem dependentes" e "casado dois titulares".
+                </p>
+              )}
+
+              {salResult && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 p-4 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Bruto</p>
+                      <p className="text-lg font-extrabold text-gray-900 mt-1">{salResult.bruto.toFixed(2)}€</p>
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100 text-center">
+                      <p className="text-[11px] text-orange-500 font-bold uppercase tracking-wider">Seg. Social (11%)</p>
+                      <p className="text-lg font-extrabold text-orange-700 mt-1">−{salResult.ss.toFixed(2)}€</p>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-2xl border border-red-100 text-center">
+                      <p className="text-[11px] text-red-500 font-bold uppercase tracking-wider">Retenção IRS</p>
+                      <p className="text-lg font-extrabold text-red-700 mt-1">−{salResult.irs.toFixed(2)}€</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-2xl border border-green-200 text-center">
+                      <p className="text-[11px] text-green-600 font-bold uppercase tracking-wider">Líquido</p>
+                      <p className="text-xl font-extrabold text-green-700 mt-1">{salResult.liquido.toFixed(2)}€</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 px-1">
+                    <span>Taxa efetiva de IRS: <b className="text-gray-700">{salResult.taxaEfetivaIRS.toFixed(1)}%</b></span>
+                    <span>Líquido anual (×14): <b className="text-gray-700">{(salResult.liquido * 14).toFixed(2)}€</b></span>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 border-t pt-3">
+                Estimativa para trabalho dependente no Continente, {TABELA_2026_I.ano}. A retenção é só um adiantamento — o
+                imposto final é apurado no IRS anual. Subsídios de férias/Natal são tributados à parte. Confirme nas tabelas
+                oficiais da AT.
+              </p>
+            </div>
           </div>
         )}
 
