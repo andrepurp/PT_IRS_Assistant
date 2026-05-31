@@ -58,6 +58,20 @@ test('mergeAnexoG numera as linhas 9001, 9002 e soma C01/C02/C03', () => {
   expect(doc.getElementsByTagName('AnexoGq09T01SomaC03')[0].textContent).toBe('4.00');
 });
 
+test('NIFs das principais cotadas são preenchidos automaticamente', () => {
+  const casos = [
+    ['PTBCP0AM0015', '501525882'], // BCP
+    ['PTEDP0AM0009', '500697256'], // EDP
+    ['PTJMT0AE0001', '500100144'], // Jerónimo Martins
+  ];
+  casos.forEach(([isin, nif]) => {
+    const { xml, warnings } = mergeAnexoG(BASE_XML, [galp({ isin })]);
+    expect(warnings).toEqual([]);
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    expect(doc.getElementsByTagName('NIF')[0].textContent).toBe(nif);
+  });
+});
+
 test('mergeAnexoG avisa quando não conhece o NIF do emitente', () => {
   const { warnings } = mergeAnexoG(BASE_XML, [galp({ isin: 'PTXXX0000000' })]);
   expect(warnings.length).toBe(1);

@@ -20,9 +20,22 @@
 import { splitDate } from './anexoJ';
 
 // ISIN do emitente -> NIF da entidade emitente. A AT exige o NIF do emitente no Anexo G; não é
-// derivável do ISIN, por isso só preenchemos os que conhecemos e avisamos para os restantes.
+// derivável do ISIN. Tabela das principais cotadas na Euronext Lisboa — NIPC confirmado em fontes
+// oficiais (nif.pt / registo comercial). Para ISIN não listado, avisamos para preencher à mão.
 const ISIN_NIF_PT = {
   PTGAL0AM0009: '504499777', // Galp Energia SGPS
+  PTBCP0AM0015: '501525882', // Banco Comercial Português
+  PTEDP0AM0009: '500697256', // EDP - Energias de Portugal
+  PTJMT0AE0001: '500100144', // Jerónimo Martins SGPS
+  PTSON0AM0001: '500273170', // Sonae SGPS
+  PTMEN0AE0005: '502399694', // Mota-Engil SGPS
+  PTPTI0AM0006: '503025798', // The Navigator Company
+  PTREL0AM0008: '503264032', // REN - Redes Energéticas Nacionais
+  PTCOR0AE0006: '500077797', // Corticeira Amorim SGPS
+  PTNOS0AM0006: '504453513', // NOS SGPS
+  PTSEM0AM0004: '502593130', // Semapa
+  PTALT0AE0002: '507172086', // Altri SGPS
+  PTCTT0AM0001: '500077568', // CTT - Correios de Portugal
 };
 
 const money = (v) => (Math.round((parseFloat(v) || 0) * 100) / 100).toFixed(2);
