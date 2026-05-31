@@ -1,12 +1,26 @@
-# Assistente de IRS — Mais-Valias & Anexo J
+# Assistente de IRS
 
-Ferramenta **100% local (client-side)** para investidores residentes em Portugal que usam
-corretoras estrangeiras (DEGIRO, Trading 212, XTB, …). Calcula as mais-valias por **FIFO** a
-partir do CSV de transações da corretora e gera o **XML do Anexo J (Quadro 9.2-A)** pronto a
-importar no Portal das Finanças.
+Conjunto de ferramentas fiscais **100% locais (client-side)** para contribuintes residentes em
+Portugal. Nenhum ficheiro ou dado financeiro é enviado para qualquer servidor — todo o
+processamento acontece no browser.
 
-Nenhum ficheiro ou dado financeiro é enviado para qualquer servidor — todo o processamento
-acontece no browser.
+## Ferramentas
+
+- **Mais-Valias** — calcula as mais-valias de investimentos por **FIFO** a partir do CSV da
+  corretora (DEGIRO, Trading 212, XTB, …) e gera o **XML do Anexo J (Quadro 9.2-A)** pronto a
+  importar no Portal das Finanças. Ativos portugueses são separados para o Anexo G.
+- **Salário Líquido** — do vencimento bruto ao líquido: Segurança Social (11%) + retenção de IRS
+  pelas tabelas oficiais de 2026 (Tabelas I, II e III).
+- **Dividendos** — imposto a pagar sobre dividendos estrangeiros (Anexo J Quadro 8A): 28% com
+  crédito do imposto pago no estrangeiro.
+- **Imóveis** — mais-valias imobiliárias (Anexo G Quadro 4): correção monetária pela tabela de
+  coeficientes de 2025 e tributação de 50%.
+- **Simulador IRS** — estimativa da liquidação anual (escalões de 2025): reembolso ou imposto a pagar.
+- **e-Fatura** — estimativa das deduções por categoria de despesa.
+
+> As ferramentas são auxiliares de cálculo e **não constituem aconselhamento fiscal**. Os valores
+> oficiais (tabelas, escalões, coeficientes) são confirmados em fontes oficiais e datados, mas
+> confirme sempre antes de submeter.
 
 ## Como funciona
 
