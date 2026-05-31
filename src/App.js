@@ -20,6 +20,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { mergeAnexoJ, isinToCodPais } from './anexoJ';
+import { mergeAnexoG } from './anexoG';
 import { parseCSV, computeGains, getCountryFromIsin, isPortugueseIsin } from './gains';
 import { calcSalario, TABELA_2026_I, TABELA_2026_II, TABELA_2026_III } from './salario';
 import { calcDividendos } from './dividendos';
@@ -141,18 +142,37 @@ export default function App() {
       setXmlError('Carregue primeiro o XML da sua declaração exportado do Portal das Finanças.');
       return;
     }
-    if (anexoJGains.length === 0) {
-      setXmlError(`Não há mais-valias de ativos estrangeiros em ${taxYear} para incluir no Anexo J.`);
+    if (anexoJGains.length === 0 && anexoGGains.length === 0) {
+      setXmlError(`Não há mais-valias em ${taxYear} para incluir.`);
       return;
     }
     try {
-      const { xml, warnings } = mergeAnexoJ(declarationXml, anexoJGains);
+      let xml = declarationXml;
+      const warnings = [];
+      // Anexo J — ativos estrangeiros.
+      if (anexoJGains.length > 0) {
+        const rJ = mergeAnexoJ(xml, anexoJGains);
+        xml = rJ.xml;
+        warnings.push(...rJ.warnings);
+      }
+      // Anexo G — ativos portugueses (só se a declaração tiver o Anexo G adicionado).
+      if (anexoGGains.length > 0) {
+        const rG = mergeAnexoG(xml, anexoGGains);
+        if (rG.skipped) {
+          warnings.push(
+            `${anexoGGains.length} ativo(s) português(es) não incluído(s): a declaração não tem o Anexo G. Adicione o Anexo G (vazio) no Portal e exporte de novo, ou use o relatório CSV.`
+          );
+        } else {
+          xml = rG.xml;
+          warnings.push(...rG.warnings);
+        }
+      }
       setXmlWarnings(warnings);
       const blob = new Blob([xml], { type: 'application/xml;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Declaracao_AnexoJ_${taxYear}.xml`;
+      link.download = `Declaracao_IRS_${taxYear}.xml`;
       link.click();
       setXmlReady(true);
     } catch (err) {
@@ -410,9 +430,10 @@ export default function App() {
                       </button>
                     </div>
                     <p className="text-xs text-indigo-800 leading-relaxed">
-                      O <b>Anexo J é só para rendimentos do estrangeiro</b>. Estes ativos têm ISIN português (PT…), por isso
-                      <b> foram excluídos do ficheiro XML</b> e o Portal recusaria a "País da Fonte". Descarregue o relatório e
-                      declare estas mais-valias <b>manualmente no Anexo G</b> (Quadro 9).
+                      O <b>Anexo J é só para rendimentos do estrangeiro</b>. Estes ativos têm ISIN português (PT…) e vão para o
+                      <b> Anexo G</b> (Quadro 9). Se <b>adicionar o Anexo G (vazio)</b> à declaração antes de gravar, o XML gerado
+                      preenche-o automaticamente. Falta indicar o <b>NIF da entidade emitente</b> de cada ativo (não é
+                      derivável do ISIN). Em alternativa, use o relatório CSV.
                     </p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs text-indigo-900 bg-white/60 rounded-xl overflow-hidden mt-1">
@@ -587,7 +608,7 @@ export default function App() {
 
                   <ol className="space-y-3">
                     {[
-                      <>No Portal, abra a sua declaração de IRS, <b>adicione o Anexo J (deixe-o vazio)</b> e clique em <b>Gravar</b> para descarregar o ficheiro <b>.xml</b>.</>,
+                      <>No Portal, abra a sua declaração de IRS, <b>adicione o Anexo J</b> (e o <b>Anexo G</b>, se tiver ativos portugueses) deixando-os vazios, e clique em <b>Gravar</b> para descarregar o ficheiro <b>.xml</b>.</>,
                       <>Aqui em baixo, <b>carregue esse .xml</b> e clique em <b>Gerar XML do Anexo J</b>.</>,
                       <>No Portal, escolha <b>"Leitura de uma declaração gravada num ficheiro"</b>, importe o ficheiro gerado, e use <b>Validar</b> e <b>Simular</b> antes de submeter.</>,
                     ].map((txt, i) => (
@@ -611,7 +632,7 @@ export default function App() {
 
                   {xmlReady && !xmlError && (
                     <p className="text-sm text-green-700 font-semibold flex items-center gap-1 bg-green-50 border border-green-200 rounded-lg p-3">
-                      <CheckCircle size={16} /> Ficheiro gerado! Importe <b>Declaracao_AnexoJ_{taxYear}.xml</b> no Portal e valide.
+                      <CheckCircle size={16} /> Ficheiro gerado! Importe <b>Declaracao_IRS_{taxYear}.xml</b> no Portal e valide.
                     </p>
                   )}
                   {xmlError && (
