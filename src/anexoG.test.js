@@ -63,6 +63,9 @@ test('NIFs das principais cotadas são preenchidos automaticamente', () => {
     ['PTBCP0AM0015', '501525882'], // BCP
     ['PTEDP0AM0009', '500697256'], // EDP
     ['PTJMT0AE0001', '500100144'], // Jerónimo Martins
+    ['PTGNV0AM0001', '506042715'], // Greenvolt
+    ['PTSLB0AM0010', '504882066'], // Benfica SAD
+    ['PTZON0AM0006', '504453513'], // NOS (ISIN legado)
   ];
   casos.forEach(([isin, nif]) => {
     const { xml, warnings } = mergeAnexoG(BASE_XML, [galp({ isin })]);

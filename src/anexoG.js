@@ -20,22 +20,63 @@
 import { splitDate } from './anexoJ';
 
 // ISIN do emitente -> NIF da entidade emitente. A AT exige o NIF do emitente no Anexo G; não é
-// derivável do ISIN. Tabela das principais cotadas na Euronext Lisboa — NIPC confirmado em fontes
-// oficiais (nif.pt / registo comercial). Para ISIN não listado, avisamos para preencher à mão.
+// derivável do ISIN. Tabela das cotadas na Euronext Lisboa (mercado regulado + Access) e emitentes
+// recentemente saídos de bolsa. Cada NIPC foi confirmado em fonte oficial (nif.pt / registo
+// comercial). Para ISIN não listado, avisamos para preencher o NIF à mão.
 const ISIN_NIF_PT = {
+  // Mercado principal / PSI
   PTGAL0AM0009: '504499777', // Galp Energia SGPS
   PTBCP0AM0015: '501525882', // Banco Comercial Português
   PTEDP0AM0009: '500697256', // EDP - Energias de Portugal
   PTJMT0AE0001: '500100144', // Jerónimo Martins SGPS
   PTSON0AM0001: '500273170', // Sonae SGPS
   PTMEN0AE0005: '502399694', // Mota-Engil SGPS
-  PTPTI0AM0006: '503025798', // The Navigator Company
+  PTPTI0AM0006: '503025798', // The Navigator Company (ex-Portucel)
   PTREL0AM0008: '503264032', // REN - Redes Energéticas Nacionais
   PTCOR0AE0006: '500077797', // Corticeira Amorim SGPS
   PTNOS0AM0006: '504453513', // NOS SGPS
+  PTZON0AM0006: '504453513', // NOS SGPS (ISIN legado ZON)
   PTSEM0AM0004: '502593130', // Semapa
   PTALT0AE0002: '507172086', // Altri SGPS
   PTCTT0AM0001: '500077568', // CTT - Correios de Portugal
+  PTIBS0AM0008: '501669477', // Ibersol SGPS
+  PTSNC0AM0006: '502028351', // Sonaecom SGPS
+  PTCFN0AE0003: '502293225', // Cofina SGPS
+  PTIPR0AM0000: '502437464', // Impresa SGPS
+  PTGMC0AM0003: '502816481', // Grupo Média Capital SGPS
+  PTMCP0AM0001: '502816481', // Grupo Média Capital SGPS (ISIN alt.)
+  PTSML0AM0009: '500277486', // Sumol+Compal
+  PTGNV0AM0001: '506042715', // Greenvolt - Energias Renováveis
+  PTNBA0AM0006: '502280182', // Novabase SGPS
+  PTMFR0AM0003: '505127261', // Martifer SGPS
+  PTVAA0AM0019: '500978654', // VAA - Vista Alegre Atlantis SGPS
+  PTFRV0AE0004: '508548527', // Ramada Investimentos
+  PTESO0AM0000: '500101221', // Estoril-Sol SGPS
+  PTTD10AM0000: '509234526', // Teixeira Duarte
+  PTSCT0AP0018: '500239037', // Toyota Caetano Portugal
+  PTPAD0AM0007: '503541320', // Glintt Global
+  PTRED0AP0010: '500400997', // Reditus SGPS
+  PTINA0AP0008: '500137994', // Inapa
+  PTEPT0AM0005: '504885367', // Luz Saúde (ex-Espírito Santo Saúde)
+  PTPTC0AM0009: '503215058', // Pharol SGPS (ex-Portugal Telecom)
+  PTS3P0AM0025: '506035034', // Sonae Indústria SGPS
+  PTSNP0AE0008: '508276756', // SC - Sonae Capital Investments SGPS
+  // SAD de futebol cotadas
+  PTSLB0AM0010: '504882066', // Sport Lisboa e Benfica - Futebol SAD
+  PTSCP0AM0001: '503994499', // Sporting Clube de Portugal - Futebol SAD
+  PTFCP0AM0008: '504076574', // Futebol Clube do Porto - Futebol SAD
+  PTSCB0AM0001: '504205498', // Sporting Clube de Braga - Futebol SAD
+  // Euronext Access / outros
+  PTCDU0AE0003: '500070210', // Conduril - Engenharia
+  PTCOM0AE0007: '500069891', // Future Compta (ex-Compta)
+  PTLIG0AE0002: '500166587', // Lisgráfica
+  PTGPA0AP0007: '500136971', // Imobiliária Construtora Grão-Pará
+  PTRIZ0AM0009: '510896197', // Raize
+  PTSAG0AM0009: '503219886', // SAG Gest (entidade renomeada após saída de bolsa)
+  // Emitentes saídos de bolsa (anos fiscais anteriores)
+  PTBPI0AM0004: '501214534', // Banco BPI
+  PTBRI0AM0000: '500048177', // Brisa - Auto-estradas de Portugal
+  PTBES0AM0007: '500852367', // Banco Espírito Santo (em liquidação)
 };
 
 const money = (v) => (Math.round((parseFloat(v) || 0) * 100) / 100).toFixed(2);
