@@ -96,6 +96,11 @@ export const parseCSV = (text) => {
   const idxFees = findPriorityIndex([['custos de transação', 'custos de transacao', 'taxas de transação', 'transaction costs', 'fees', 'transactiekosten', 'charges']]);
   // Coluna explícita de sentido da operação (Trading 212 "Action", XTB "Type", etc.)
   const idxSide = findPriorityIndex([['action', 'sentido', 'operação', 'operacao', 'buy/sell', 'compra/venda'], ['tipo', 'type']]);
+  // Hora da transação (coluna separada da data) — para ordenar FIFO dentro do mesmo dia.
+  const idxTimeRaw = findPriorityIndex([['time', 'hora', 'hour']]);
+  const idxTime = idxTimeRaw === idxDate ? -1 : idxTimeRaw;
+  // Taxa de conversão cambial cobrada pela corretora (ex.: DEGIRO "AutoFX Fee") — é uma despesa.
+  const idxAutoFx = findPriorityIndex([['autofx', 'auto fx', 'fx fee', 'taxa de câmbio automática']]);
 
   // Só precisamos das colunas que efetivamente lemos. Alguns ficheiros (ex.: DEGIRO) exportam
   // linhas com número de colunas variável — exigir row.length === headers.length descartaria
@@ -136,6 +141,8 @@ export const parseCSV = (text) => {
     const price = cleanNum(row[idxPrice]);
     const product = row[idxProduct]?.trim() || 'Desconhecido';
     const date = parseDate(rawDate);
+    const time = idxTime !== -1 ? (row[idxTime] || '').trim() : '';
+    const datetime = time ? `${date}T${time.padStart(5, '0')}` : date;
 
     // Linhas sem quantidade são ignoradas (dividendos, taxas avulsas, etc.).
     if (qty === 0) continue;
@@ -148,12 +155,13 @@ export const parseCSV = (text) => {
 
     transactions.push({
       date,
+      datetime,
       product,
       isin,
       qty,
       price,
       valueEur: cleanNum(row[idxValue]),
-      fees: Math.abs(cleanNum(row[idxFees])),
+      fees: Math.abs(cleanNum(row[idxFees])) + (idxAutoFx !== -1 ? Math.abs(cleanNum(row[idxAutoFx])) : 0),
       side: idxSide !== -1 ? (row[idxSide] || '').toLowerCase() : '',
     });
   }
@@ -178,7 +186,8 @@ export const isSell = (tx) => {
 // `idFor(i)` permite injetar IDs determinísticos nos testes.
 export const computeGains = (transactions, idFor) => {
   const makeId = idFor || (() => Math.random().toString(36).slice(2, 11));
-  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  // Ordenação cronológica: por data e hora, para o FIFO emparelhar corretamente trades do mesmo dia.
+  const sorted = [...transactions].sort((a, b) => (a.datetime || a.date).localeCompare(b.datetime || b.date));
 
   const buyQueues = {};
   const realizations = [];

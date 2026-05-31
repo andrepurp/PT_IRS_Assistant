@@ -51,6 +51,9 @@ export default function App() {
     setUnmatchedSales(unmatched);
     setCorporateActions(skipped);
     setXmlReady(false);
+    // Seleciona automaticamente o ano mais recente com mais-valias.
+    const years = Array.from(new Set(realizations.map((r) => r.year))).sort((a, b) => b.localeCompare(a));
+    if (years.length) setTaxYear(years[0]);
     setStep(3);
   };
 
@@ -81,6 +84,23 @@ export default function App() {
     const link = document.createElement('a');
     link.href = url;
     link.download = `AnexoJ_Conferencia_${taxYear}.csv`;
+    link.click();
+  };
+
+  // Relatório dos ativos PORTUGUESES para preenchimento manual do Anexo G (Quadro 9).
+  const downloadAnexoGCSV = () => {
+    let csv = 'Codigo;Pais_Contraparte;Ano_Realizacao;Mes_Realizacao;Valor_Realizacao;Ano_Aquisicao;Mes_Aquisicao;Valor_Aquisicao;Despesas;ISIN;Produto\n';
+    anexoGGains.forEach((g) => {
+      const [ra, rm] = g.dataRealizacao.split('-');
+      const [aa, am] = g.dataAquisicao.split('-');
+      const pais = isinToCodPais(g.isin); // PT -> 620
+      csv += `${g.codigo};${pais.code};${ra};${parseInt(rm, 10)};${g.valorRealizacao.replace('.', ',')};${aa};${parseInt(am, 10)};${g.valorAquisicao.replace('.', ',')};${g.despesas.replace('.', ',')};${g.isin};"${g.produto}"\n`;
+    });
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `AnexoG_${taxYear}.csv`;
     link.click();
   };
 
@@ -142,6 +162,8 @@ export default function App() {
     setXmlReady(false);
   };
 
+  const availableYears = Array.from(new Set(processedGains.map((g) => g.year))).sort((a, b) => b.localeCompare(a));
+  const yearOptions = availableYears.length ? availableYears : ['2025', '2024', '2023'];
   const yearGains = processedGains.filter((g) => g.year === taxYear);
   const anexoJGains = yearGains.filter((g) => !isPortugueseIsin(g.isin)); // estrangeiros -> Anexo J
   const anexoGGains = yearGains.filter((g) => isPortugueseIsin(g.isin)); // portugueses -> Anexo G
@@ -288,7 +310,7 @@ export default function App() {
                   <div className="flex items-center gap-2 w-full md:w-auto">
                     <span className="text-sm text-gray-500 font-medium whitespace-nowrap">Ano:</span>
                     <select value={taxYear} onChange={(e) => setTaxYear(e.target.value)} className="flex-1 p-3 border rounded-xl font-semibold bg-gray-50 text-gray-800">
-                      {['2025', '2024', '2023'].map((yr) => (
+                      {yearOptions.map((yr) => (
                         <option key={yr} value={yr}>{yr}</option>
                       ))}
                     </select>
@@ -321,13 +343,18 @@ export default function App() {
                 {/* Ativos portugueses -> Anexo G (excluídos do Anexo J) */}
                 {anexoGGains.length > 0 && (
                   <div className="bg-indigo-50 border border-indigo-200 p-5 rounded-2xl space-y-3">
-                    <h4 className="font-bold text-indigo-900 flex items-center gap-2">
-                      <Landmark size={20} /> {anexoGGains.length} ativo(s) português(es) — vão para o Anexo G, não o Anexo J
-                    </h4>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <h4 className="font-bold text-indigo-900 flex items-center gap-2">
+                        <Landmark size={20} /> {anexoGGains.length} ativo(s) português(es) — vão para o Anexo G
+                      </h4>
+                      <button onClick={downloadAnexoGCSV} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2 rounded-lg flex items-center gap-1 justify-center whitespace-nowrap">
+                        <Download size={14} /> Relatório Anexo G (CSV)
+                      </button>
+                    </div>
                     <p className="text-xs text-indigo-800 leading-relaxed">
                       O <b>Anexo J é só para rendimentos do estrangeiro</b>. Estes ativos têm ISIN português (PT…), por isso
-                      <b> foram excluídos do ficheiro XML</b> e o Portal recusaria a "País da Fonte". Declare estas
-                      mais-valias <b>manualmente no Anexo G</b> (Quadro 9).
+                      <b> foram excluídos do ficheiro XML</b> e o Portal recusaria a "País da Fonte". Descarregue o relatório e
+                      declare estas mais-valias <b>manualmente no Anexo G</b> (Quadro 9).
                     </p>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs text-indigo-900 bg-white/60 rounded-xl overflow-hidden mt-1">

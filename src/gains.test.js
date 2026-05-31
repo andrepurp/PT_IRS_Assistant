@@ -132,6 +132,34 @@ test('computeGains fully matches the VW sale once the 20-share buy is kept', () 
   expect(totalCompra).toBeCloseTo(2163.76, 1); // 1876.00 + 287.76
 });
 
+test('computeGains sorts by date AND time so same-day FIFO pairs correctly', () => {
+  // CSV em ordem inversa (mais recente primeiro, como a DEGIRO exporta). Sem ordenar por hora,
+  // a venda das 12:00 seria processada antes das compras e ficaria por corresponder.
+  const csv = [
+    'Data;Hora;Produto;ISIN;Quantidade;Cotação;Valor em EUR;Custos de transação',
+    '01-03-2024;12:00;X;US0000000001;-15;3;45;0',
+    '01-03-2024;11:00;X;US0000000001;10;2;-20;0',
+    '01-03-2024;10:00;X;US0000000001;10;1;-10;0',
+  ].join('\n');
+  const { realizations, unmatched } = computeGains(parseCSV(csv).transactions, seqId());
+  expect(unmatched).toHaveLength(0);
+  expect(realizations).toHaveLength(2);
+  expect(realizations[0].valorAquisicao).toBe('10.00'); // lote das 10:00 (@1), o mais antigo por hora
+  expect(realizations[1].valorAquisicao).toBe('10.00'); // 5 ações do lote das 11:00 (@2)
+});
+
+test('despesas include the AutoFX currency-conversion fee', () => {
+  const csv = [
+    'Date,Time,Product,ISIN,Reference exchange,Venue,Quantity,Price,,Local value,,Value EUR,Exchange rate,AutoFX Fee,Transaction and/or third party fees EUR,Total EUR,Order ID,',
+    '20-08-2024,15:30,FOO,US1111111111,NDQ,XNAS,1,"100,0000",USD,"-100,00",USD,"-100,00","1,10","-0,50","-2,00","-102,50",,o1',
+    '22-08-2024,15:30,FOO,US1111111111,NDQ,XNAS,-1,"110,0000",USD,"110,00",USD,"110,00","1,10","-0,30","-2,00","107,70",,o2',
+  ].join('\n');
+  const { realizations } = computeGains(parseCSV(csv).transactions, seqId());
+  expect(realizations).toHaveLength(1);
+  // 2.00 + 0.50 (compra) + 2.00 + 0.30 (venda) = 4.80
+  expect(realizations[0].despesas).toBe('4.80');
+});
+
 test('isPortugueseIsin detects PT-registered securities (Anexo G, not J)', () => {
   expect(isPortugueseIsin('PTGAL0AM0009')).toBe(true);
   expect(isPortugueseIsin('US0378331005')).toBe(false);

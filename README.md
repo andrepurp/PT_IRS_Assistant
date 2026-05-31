@@ -31,6 +31,18 @@ acontece no browser.
 
 O código é inferido pelo nome do produto e pode ser alterado manualmente em cada linha.
 
+## Ativos portugueses (Anexo G)
+
+Ativos com ISIN português (PT…) são rendimento de fonte nacional: pertencem ao **Anexo G**,
+não ao Anexo J. A app separa-os automaticamente, exclui-os do XML do Anexo J, e disponibiliza um
+**relatório CSV do Anexo G** para preenchimento manual no Quadro 9.
+
+## Detalhes do cálculo
+
+- **FIFO por data e hora** — trades do mesmo dia são emparelhados pela ordem cronológica real.
+- **Despesas** incluem os custos de transação e a taxa de conversão cambial da corretora (AutoFX).
+- Ficheiros com número de colunas variável (ex.: exports antigos da DEGIRO) são lidos na mesma.
+
 ## Limitações conhecidas
 
 - **Imposto pago no estrangeiro** (coluna C04) é exportado a 0. Raro em mais-valias; se aplicável,
