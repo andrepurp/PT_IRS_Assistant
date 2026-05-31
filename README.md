@@ -81,4 +81,20 @@ A lógica está separada da UI para ser testável:
 
 - [`src/gains.js`](src/gains.js) — parsing de CSV e cálculo FIFO.
 - [`src/anexoJ.js`](src/anexoJ.js) — fusão das mais-valias no XML do Anexo J + tabela de países.
+- [`src/anexoG.js`](src/anexoG.js) — fusão no Anexo G + NIF do emitente ([`src/nifPt.json`](src/nifPt.json)).
+- [`src/salario.js`](src/salario.js), [`src/dividendos.js`](src/dividendos.js), [`src/imovel.js`](src/imovel.js), [`src/irsanual.js`](src/irsanual.js) — calculadoras.
 - [`src/App.js`](src/App.js) — interface.
+
+### Manutenção da tabela de NIF (Anexo G)
+
+A tabela ISIN → NIF do emitente ([`src/nifPt.json`](src/nifPt.json)) pode ser verificada/atualizada
+com a API pública do GLEIF (ferramenta de build, nunca corre no browser):
+
+```bash
+npm run gen:nif                     # verifica e reporta divergências (não grava)
+npm run gen:nif -- --write          # grava entradas novas e confirma
+node scripts/generate-nif-table.mjs PTXXX0XX0000   # acrescenta um ISIN a resolver
+```
+
+Divergências em relação aos valores atuais não são sobrepostas sem `--force` — por serem dados
+de uma declaração fiscal, devem ser revistas à mão.
