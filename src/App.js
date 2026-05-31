@@ -23,6 +23,7 @@ import { mergeAnexoJ, isinToCodPais } from './anexoJ';
 import { parseCSV, computeGains, getCountryFromIsin, isPortugueseIsin } from './gains';
 import { calcSalario, TABELA_2026_I, TABELA_2026_II, TABELA_2026_III } from './salario';
 import { calcDividendos } from './dividendos';
+import { calcMaisValiaImovel, ANO_VENDA } from './imovel';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('investimentos');
@@ -42,6 +43,7 @@ export default function App() {
   const [salDeps, setSalDeps] = useState('0');
   const [salSit, setSalSit] = useState('solteiro');
   const [divEntries, setDivEntries] = useState([{ id: 1, pais: 'Estados Unidos', bruto: '', imp: '' }]);
+  const [imv, setImv] = useState({ anoAquisicao: '', valorAquisicao: '', valorRealizacao: '', despesasAquisicao: '', encargosValorizacao: '', despesasVenda: '', reinvestimento: false });
 
   const efaturaLimits = {
     geral: { max: 250, rate: 0.35, label: 'Despesas Gerais', icon: Receipt, color: 'text-blue-500' },
@@ -217,6 +219,12 @@ export default function App() {
   const updateDiv = (id, field, val) => setDivEntries((p) => p.map((e) => (e.id === id ? { ...e, [field]: val } : e)));
   const removeDiv = (id) => setDivEntries((p) => (p.length > 1 ? p.filter((e) => e.id !== id) : p));
   const divResult = calcDividendos(divEntries.map((e) => ({ pais: e.pais, bruto: e.bruto, impostoEstrangeiro: e.imp })));
+  const setImvField = (f, v) => setImv((p) => ({ ...p, [f]: v }));
+  const imvResult =
+    imv.anoAquisicao && imv.valorAquisicao && imv.valorRealizacao
+      ? calcMaisValiaImovel({ ...imv, reinvestimentoTotal: imv.reinvestimento })
+      : null;
+
   const downloadDividendosCSV = () => {
     let csv = 'Pais;Valor_Bruto;Imposto_Pago_Estrangeiro\n';
     divEntries.forEach((e) => {
@@ -292,6 +300,7 @@ export default function App() {
           <button onClick={() => setActiveTab('investimentos')} className={tabBtn('investimentos')}>Mais-Valias</button>
           <button onClick={() => setActiveTab('salario')} className={tabBtn('salario')}>Salário Líquido</button>
           <button onClick={() => setActiveTab('dividendos')} className={tabBtn('dividendos')}>Dividendos</button>
+          <button onClick={() => setActiveTab('imoveis')} className={tabBtn('imoveis')}>Imóveis</button>
           <button onClick={() => setActiveTab('efatura')} className={tabBtn('efatura')}>e-Fatura</button>
           <button onClick={() => setActiveTab('instrucoes')} className={tabBtn('instrucoes')}>Instruções</button>
         </div>
@@ -747,6 +756,76 @@ export default function App() {
                 Estimativa à taxa autónoma de 28%. O crédito por dupla tributação está limitado a 28% do bruto; ao abrigo das
                 convenções, a retenção no estrangeiro costuma estar limitada (ex.: 15%) — o excesso retido tem de ser reclamado
                 ao país da fonte. Pode optar pelo englobamento. Não é aconselhamento fiscal.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'imoveis' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 justify-center"><Home className="text-blue-600" /> Mais-Valias Imobiliárias</h2>
+                <p className="text-sm text-gray-500 mt-1">Venda de imóvel em {ANO_VENDA} (Anexo G, Quadro 4). Corrige a aquisição pela inflação e tributa 50%.</p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[
+                  ['anoAquisicao', 'Ano de aquisição', 'number', '2010'],
+                  ['valorAquisicao', 'Valor de aquisição (€)', 'number', '100000'],
+                  ['valorRealizacao', 'Valor de venda (€)', 'number', '200000'],
+                  ['despesasAquisicao', 'Despesas de aquisição: IMT, selo, escritura (€)', 'number', '5000'],
+                  ['encargosValorizacao', 'Obras de valorização — últimos 12 anos (€)', 'number', '10000'],
+                  ['despesasVenda', 'Despesas de venda: comissão, certificado (€)', 'number', '8000'],
+                ].map(([f, label, type, ph]) => (
+                  <div key={f}>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</label>
+                    <input type={type} value={imv[f]} onChange={(e) => setImvField(f, e.target.value)} placeholder={ph} className="w-full mt-1 p-3 border rounded-xl font-semibold" />
+                  </div>
+                ))}
+              </div>
+
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={imv.reinvestimento} onChange={(e) => setImvField('reinvestimento', e.target.checked)} className="w-4 h-4" />
+                Habitação própria permanente com <b>reinvestimento total</b> (isenta a mais-valia)
+              </label>
+
+              {imvResult && !imvResult.anoSuportado && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
+                  <AlertTriangle size={16} /> Sem coeficiente para {imv.anoAquisicao} (a tabela cobre 2000–{ANO_VENDA}). Consulte a Portaria para anos anteriores.
+                </p>
+              )}
+
+              {imvResult && imvResult.anoSuportado && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t pt-4">
+                    <div className="bg-gray-50 p-4 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Coeficiente</p>
+                      <p className="text-lg font-extrabold text-gray-900 mt-1">×{imvResult.coef.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Aquisição corrigida</p>
+                      <p className="text-lg font-extrabold text-gray-900 mt-1">{imvResult.valorAquisicaoCorrigido.toFixed(2)}€</p>
+                    </div>
+                    <div className={`p-4 rounded-2xl border text-center ${imvResult.maisValia >= 0 ? 'bg-blue-50 border-blue-100' : 'bg-green-50 border-green-100'}`}>
+                      <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">Mais-valia</p>
+                      <p className={`text-lg font-extrabold mt-1 ${imvResult.maisValia >= 0 ? 'text-blue-700' : 'text-green-700'}`}>{imvResult.maisValia.toFixed(2)}€</p>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-center">
+                      <p className="text-[11px] text-red-500 font-bold uppercase tracking-wider">Tributável (50%)</p>
+                      <p className="text-xl font-extrabold text-red-700 mt-1">{imvResult.tributavel.toFixed(2)}€</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 px-1">
+                    A parte tributável é <b>englobada</b> com os seus outros rendimentos e tributada às taxas progressivas
+                    do IRS (use o simulador de IRS para estimar o imposto final).
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 border-t pt-3">
+                Estimativa para vendas em {ANO_VENDA} (Portaria 382/2025). Não cobre regras especiais (ex.: reinvestimento
+                parcial, imóveis afetos a atividade, heranças). Não é aconselhamento fiscal.
               </p>
             </div>
           </div>
