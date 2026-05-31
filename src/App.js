@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { mergeAnexoJ, isinToCodPais } from './anexoJ';
 import { parseCSV, computeGains, getCountryFromIsin, isPortugueseIsin } from './gains';
-import { calcSalario, TABELA_2026_I } from './salario';
+import { calcSalario, TABELA_2026_I, TABELA_2026_II, TABELA_2026_III } from './salario';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('investimentos');
@@ -198,10 +198,17 @@ export default function App() {
     return `Para atingir o limite, gastar aprox. ${needed.toFixed(2)}€`;
   };
 
-  const salDisponivel = salSit === 'solteiro' || salSit === 'casado2';
+  // Mapeia a situação para a tabela de retenção e se a contagem de dependentes se aplica.
+  const SAL_SITUACOES = {
+    solteiro: { tabela: TABELA_2026_I, deps: false },
+    casado2: { tabela: TABELA_2026_I, deps: true },
+    solteiro_dep: { tabela: TABELA_2026_II, deps: true },
+    casado1: { tabela: TABELA_2026_III, deps: true },
+  };
+  const salCfg = SAL_SITUACOES[salSit];
   const salResult =
-    salBruto && salDisponivel && parseFloat(salBruto) > 0
-      ? calcSalario(parseFloat(salBruto), TABELA_2026_I, salSit === 'casado2' ? parseInt(salDeps, 10) || 0 : 0)
+    salBruto && parseFloat(salBruto) > 0
+      ? calcSalario(parseFloat(salBruto), salCfg.tabela, salCfg.deps ? parseInt(salDeps, 10) || 0 : 0)
       : null;
 
   const tabBtn = (id, label) =>
@@ -615,22 +622,16 @@ export default function App() {
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Situação</label>
                   <select value={salSit} onChange={(e) => setSalSit(e.target.value)} className="w-full mt-1 p-3 border rounded-xl font-semibold bg-gray-50 text-gray-800">
                     <option value="solteiro">Não casado, sem dependentes</option>
+                    <option value="solteiro_dep">Não casado, com dependentes</option>
                     <option value="casado2">Casado, dois titulares</option>
-                    <option value="solteiro_dep">Não casado, com dependentes — em breve</option>
-                    <option value="casado1">Casado, único titular — em breve</option>
+                    <option value="casado1">Casado, único titular</option>
                   </select>
                 </div>
                 <div className="sm:col-span-1">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Dependentes</label>
-                  <input type="number" min="0" value={salDeps} onChange={(e) => setSalDeps(e.target.value)} disabled={salSit !== 'casado2'} className="w-full mt-1 p-3 border rounded-xl font-semibold disabled:bg-gray-100 disabled:text-gray-400" />
+                  <input type="number" min="0" value={salDeps} onChange={(e) => setSalDeps(e.target.value)} disabled={!salCfg.deps} className="w-full mt-1 p-3 border rounded-xl font-semibold disabled:bg-gray-100 disabled:text-gray-400" />
                 </div>
               </div>
-
-              {!salDisponivel && (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
-                  <Info size={16} /> Esta situação usa a Tabela II/III, que ainda não está incluída. Para já, suporta "não casado sem dependentes" e "casado dois titulares".
-                </p>
-              )}
 
               {salResult && (
                 <div className="space-y-4">

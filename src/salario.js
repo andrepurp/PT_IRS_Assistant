@@ -8,23 +8,53 @@
 
 export const SS_RATE = 0.11; // Segurança Social — contribuição do trabalhador (regime geral).
 
+// Escalões partilhados pela Tabela I e II (só difere a parcela por dependente).
+const BRACKETS_I = [
+  { limite: 920.0, taxa: 0, parcela: () => 0 },
+  { limite: 1042.0, taxa: 0.125, parcela: (R) => 0.125 * 2.6 * (1273.85 - R) },
+  { limite: 1108.0, taxa: 0.157, parcela: (R) => 0.157 * 1.35 * (1554.83 - R) },
+  { limite: 1154.0, taxa: 0.157, parcela: () => 94.71 },
+  { limite: 1212.0, taxa: 0.212, parcela: () => 158.18 },
+  { limite: 1819.0, taxa: 0.241, parcela: () => 193.33 },
+  { limite: 2119.0, taxa: 0.311, parcela: () => 320.66 },
+  { limite: 2499.0, taxa: 0.349, parcela: () => 401.19 },
+  { limite: 3305.0, taxa: 0.3836, parcela: () => 487.66 },
+  { limite: 5547.0, taxa: 0.3969, parcela: () => 531.62 },
+  { limite: 20221.0, taxa: 0.4495, parcela: () => 823.4 },
+  { limite: Infinity, taxa: 0.4717, parcela: () => 1272.31 },
+];
+
 export const TABELA_2026_I = {
   ano: '2026',
   nome: 'Tabela I — não casado sem dependentes / casado dois titulares',
-  dependente: 21.43, // parcela adicional a abater por dependente
+  dependente: 21.43,
+  brackets: BRACKETS_I,
+};
+
+export const TABELA_2026_II = {
+  ano: '2026',
+  nome: 'Tabela II — não casado com dependentes',
+  dependente: 34.29,
+  brackets: BRACKETS_I,
+};
+
+export const TABELA_2026_III = {
+  ano: '2026',
+  nome: 'Tabela III — casado, único titular',
+  dependente: 42.86,
   brackets: [
-    { limite: 920.0, taxa: 0, parcela: () => 0 },
-    { limite: 1042.0, taxa: 0.125, parcela: (R) => 0.125 * 2.6 * (1273.85 - R) },
-    { limite: 1108.0, taxa: 0.157, parcela: (R) => 0.157 * 1.35 * (1554.83 - R) },
-    { limite: 1154.0, taxa: 0.157, parcela: () => 94.71 },
-    { limite: 1212.0, taxa: 0.212, parcela: () => 158.18 },
-    { limite: 1819.0, taxa: 0.241, parcela: () => 193.33 },
-    { limite: 2119.0, taxa: 0.311, parcela: () => 320.66 },
-    { limite: 2499.0, taxa: 0.349, parcela: () => 401.19 },
-    { limite: 3305.0, taxa: 0.3836, parcela: () => 487.66 },
-    { limite: 5547.0, taxa: 0.3969, parcela: () => 531.62 },
-    { limite: 20221.0, taxa: 0.4495, parcela: () => 823.4 },
-    { limite: Infinity, taxa: 0.4717, parcela: () => 1272.31 },
+    { limite: 991.0, taxa: 0, parcela: () => 0 },
+    { limite: 1042.0, taxa: 0.125, parcela: (R) => 0.125 * 2.6 * (1372.15 - R) },
+    { limite: 1108.0, taxa: 0.125, parcela: (R) => 0.125 * 1.35 * (1677.85 - R) },
+    { limite: 1119.0, taxa: 0.125, parcela: () => 96.17 },
+    { limite: 1432.0, taxa: 0.1272, parcela: () => 98.64 },
+    { limite: 1962.0, taxa: 0.157, parcela: () => 141.32 },
+    { limite: 2240.0, taxa: 0.1938, parcela: () => 213.53 },
+    { limite: 2773.0, taxa: 0.2277, parcela: () => 289.47 },
+    { limite: 3389.0, taxa: 0.257, parcela: () => 370.72 },
+    { limite: 5965.0, taxa: 0.2881, parcela: () => 476.12 },
+    { limite: 20265.0, taxa: 0.3843, parcela: () => 1049.96 },
+    { limite: Infinity, taxa: 0.4717, parcela: () => 2821.13 },
   ],
 };
 
