@@ -22,6 +22,7 @@ import {
 import { mergeAnexoJ, isinToCodPais } from './anexoJ';
 import { parseCSV, computeGains, getCountryFromIsin, isPortugueseIsin } from './gains';
 import { calcSalario, TABELA_2026_I, TABELA_2026_II, TABELA_2026_III } from './salario';
+import { calcDividendos } from './dividendos';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('investimentos');
@@ -40,6 +41,7 @@ export default function App() {
   const [salBruto, setSalBruto] = useState('');
   const [salDeps, setSalDeps] = useState('0');
   const [salSit, setSalSit] = useState('solteiro');
+  const [divEntries, setDivEntries] = useState([{ id: 1, pais: 'Estados Unidos', bruto: '', imp: '' }]);
 
   const efaturaLimits = {
     geral: { max: 250, rate: 0.35, label: 'Despesas Gerais', icon: Receipt, color: 'text-blue-500' },
@@ -211,6 +213,23 @@ export default function App() {
       ? calcSalario(parseFloat(salBruto), salCfg.tabela, salCfg.deps ? parseInt(salDeps, 10) || 0 : 0)
       : null;
 
+  const addDiv = () => setDivEntries((p) => [...p, { id: Math.max(0, ...p.map((e) => e.id)) + 1, pais: '', bruto: '', imp: '' }]);
+  const updateDiv = (id, field, val) => setDivEntries((p) => p.map((e) => (e.id === id ? { ...e, [field]: val } : e)));
+  const removeDiv = (id) => setDivEntries((p) => (p.length > 1 ? p.filter((e) => e.id !== id) : p));
+  const divResult = calcDividendos(divEntries.map((e) => ({ pais: e.pais, bruto: e.bruto, impostoEstrangeiro: e.imp })));
+  const downloadDividendosCSV = () => {
+    let csv = 'Pais;Valor_Bruto;Imposto_Pago_Estrangeiro\n';
+    divEntries.forEach((e) => {
+      if (e.pais || e.bruto) csv += `"${e.pais}";${(parseFloat(e.bruto) || 0).toFixed(2).replace('.', ',')};${(parseFloat(e.imp) || 0).toFixed(2).replace('.', ',')}\n`;
+    });
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Dividendos_AnexoJ_8A.csv';
+    link.click();
+  };
+
   const tabBtn = (id, label) =>
     `flex-1 min-w-[110px] py-3 rounded-xl font-bold transition-all ${
       activeTab === id ? 'bg-blue-600 text-white shadow' : 'text-gray-600 hover:bg-gray-50'
@@ -272,6 +291,7 @@ export default function App() {
         <div className="flex flex-wrap gap-1 bg-white rounded-2xl p-1 shadow-sm border border-gray-200 mb-8">
           <button onClick={() => setActiveTab('investimentos')} className={tabBtn('investimentos')}>Mais-Valias</button>
           <button onClick={() => setActiveTab('salario')} className={tabBtn('salario')}>Salário Líquido</button>
+          <button onClick={() => setActiveTab('dividendos')} className={tabBtn('dividendos')}>Dividendos</button>
           <button onClick={() => setActiveTab('efatura')} className={tabBtn('efatura')}>e-Fatura</button>
           <button onClick={() => setActiveTab('instrucoes')} className={tabBtn('instrucoes')}>Instruções</button>
         </div>
@@ -664,6 +684,69 @@ export default function App() {
                 Estimativa para trabalho dependente no Continente, {TABELA_2026_I.ano}. A retenção é só um adiantamento — o
                 imposto final é apurado no IRS anual. Subsídios de férias/Natal são tributados à parte. Confirme nas tabelas
                 oficiais da AT.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'dividendos' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 justify-center"><Globe className="text-blue-600" /> Dividendos Estrangeiros</h2>
+                <p className="text-sm text-gray-500 mt-1">Imposto a pagar em Portugal sobre dividendos de fora (Anexo J, Quadro 8A) — 28% com crédito do imposto pago no estrangeiro.</p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="hidden sm:grid grid-cols-12 gap-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">
+                  <span className="col-span-5">País da fonte</span>
+                  <span className="col-span-3">Dividendo bruto (€)</span>
+                  <span className="col-span-3">Imposto retido lá fora (€)</span>
+                  <span className="col-span-1" />
+                </div>
+                {divEntries.map((e) => (
+                  <div key={e.id} className="grid grid-cols-12 gap-2 items-center">
+                    <input value={e.pais} onChange={(ev) => updateDiv(e.id, 'pais', ev.target.value)} placeholder="Estados Unidos" className="col-span-12 sm:col-span-5 p-2.5 border rounded-lg" />
+                    <input type="number" value={e.bruto} onChange={(ev) => updateDiv(e.id, 'bruto', ev.target.value)} placeholder="1000" className="col-span-6 sm:col-span-3 p-2.5 border rounded-lg" />
+                    <input type="number" value={e.imp} onChange={(ev) => updateDiv(e.id, 'imp', ev.target.value)} placeholder="150" className="col-span-5 sm:col-span-3 p-2.5 border rounded-lg" />
+                    <button onClick={() => removeDiv(e.id)} className="col-span-1 text-red-400 hover:text-red-600 flex justify-center" title="Remover">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                <button onClick={addDiv} className="text-blue-600 font-semibold text-sm hover:underline">+ Adicionar dividendo</button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t pt-4">
+                <div className="bg-gray-50 p-4 rounded-2xl border text-center">
+                  <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Total Bruto</p>
+                  <p className="text-lg font-extrabold text-gray-900 mt-1">{divResult.bruto.toFixed(2)}€</p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-center">
+                  <p className="text-[11px] text-blue-500 font-bold uppercase tracking-wider">Imposto PT (28%)</p>
+                  <p className="text-lg font-extrabold text-blue-700 mt-1">{divResult.impostoPT.toFixed(2)}€</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-2xl border border-green-100 text-center">
+                  <p className="text-[11px] text-green-600 font-bold uppercase tracking-wider">Crédito (imposto lá fora)</p>
+                  <p className="text-lg font-extrabold text-green-700 mt-1">−{divResult.credito.toFixed(2)}€</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-center">
+                  <p className="text-[11px] text-red-500 font-bold uppercase tracking-wider">A pagar em PT</p>
+                  <p className="text-xl font-extrabold text-red-700 mt-1">{divResult.aPagar.toFixed(2)}€</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-gray-500 border-t pt-3">
+                <span>Líquido final estimado (após imposto PT e estrangeiro): <b className="text-gray-700">{divResult.liquidoFinal.toFixed(2)}€</b></span>
+                <button onClick={downloadDividendosCSV} className="text-gray-700 font-semibold hover:underline flex items-center gap-1 whitespace-nowrap">
+                  <Download size={14} /> Folha Anexo J 8A (CSV)
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-400 border-t pt-3">
+                Estimativa à taxa autónoma de 28%. O crédito por dupla tributação está limitado a 28% do bruto; ao abrigo das
+                convenções, a retenção no estrangeiro costuma estar limitada (ex.: 15%) — o excesso retido tem de ser reclamado
+                ao país da fonte. Pode optar pelo englobamento. Não é aconselhamento fiscal.
               </p>
             </div>
           </div>
