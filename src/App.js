@@ -24,6 +24,7 @@ import { parseCSV, computeGains, getCountryFromIsin, isPortugueseIsin } from './
 import { calcSalario, TABELA_2026_I, TABELA_2026_II, TABELA_2026_III } from './salario';
 import { calcDividendos } from './dividendos';
 import { calcMaisValiaImovel, ANO_VENDA } from './imovel';
+import { calcIRSAnual, ANO as IRS_ANO } from './irsanual';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('investimentos');
@@ -44,6 +45,7 @@ export default function App() {
   const [salSit, setSalSit] = useState('solteiro');
   const [divEntries, setDivEntries] = useState([{ id: 1, pais: 'Estados Unidos', bruto: '', imp: '' }]);
   const [imv, setImv] = useState({ anoAquisicao: '', valorAquisicao: '', valorRealizacao: '', despesasAquisicao: '', encargosValorizacao: '', despesasVenda: '', reinvestimento: false });
+  const [irs, setIrs] = useState({ rendimentoBruto: '', retencoes: '', deducoesColeta: '' });
 
   const efaturaLimits = {
     geral: { max: 250, rate: 0.35, label: 'Despesas Gerais', icon: Receipt, color: 'text-blue-500' },
@@ -225,6 +227,9 @@ export default function App() {
       ? calcMaisValiaImovel({ ...imv, reinvestimentoTotal: imv.reinvestimento })
       : null;
 
+  const setIrsField = (f, v) => setIrs((p) => ({ ...p, [f]: v }));
+  const irsResult = irs.rendimentoBruto && parseFloat(irs.rendimentoBruto) > 0 ? calcIRSAnual(irs) : null;
+
   const downloadDividendosCSV = () => {
     let csv = 'Pais;Valor_Bruto;Imposto_Pago_Estrangeiro\n';
     divEntries.forEach((e) => {
@@ -301,6 +306,7 @@ export default function App() {
           <button onClick={() => setActiveTab('salario')} className={tabBtn('salario')}>Salário Líquido</button>
           <button onClick={() => setActiveTab('dividendos')} className={tabBtn('dividendos')}>Dividendos</button>
           <button onClick={() => setActiveTab('imoveis')} className={tabBtn('imoveis')}>Imóveis</button>
+          <button onClick={() => setActiveTab('simulador')} className={tabBtn('simulador')}>Simulador IRS</button>
           <button onClick={() => setActiveTab('efatura')} className={tabBtn('efatura')}>e-Fatura</button>
           <button onClick={() => setActiveTab('instrucoes')} className={tabBtn('instrucoes')}>Instruções</button>
         </div>
@@ -826,6 +832,63 @@ export default function App() {
               <p className="text-xs text-gray-400 border-t pt-3">
                 Estimativa para vendas em {ANO_VENDA} (Portaria 382/2025). Não cobre regras especiais (ex.: reinvestimento
                 parcial, imóveis afetos a atividade, heranças). Não é aconselhamento fiscal.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'simulador' && (
+          <div className="space-y-6">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm space-y-5">
+              <div className="text-center">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 justify-center"><FileText className="text-blue-600" /> Simulador de IRS {IRS_ANO}</h2>
+                <p className="text-sm text-gray-500 mt-1">Estimativa da liquidação anual para um titular (trabalho dependente). Reembolso ou imposto a pagar.</p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4">
+                {[
+                  ['rendimentoBruto', 'Rendimento bruto anual (€)', '20000'],
+                  ['retencoes', 'IRS retido no ano (€)', '3000'],
+                  ['deducoesColeta', 'Deduções à coleta (€)', '500'],
+                ].map(([f, label, ph]) => (
+                  <div key={f}>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label}</label>
+                    <input type="number" value={irs[f]} onChange={(e) => setIrsField(f, e.target.value)} placeholder={ph} className="w-full mt-1 p-3 border rounded-xl font-semibold" />
+                  </div>
+                ))}
+              </div>
+
+              {irsResult && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t pt-4">
+                    <div className="bg-gray-50 p-4 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Coletável</p>
+                      <p className="text-lg font-extrabold text-gray-900 mt-1">{irsResult.coletavel.toFixed(2)}€</p>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-center">
+                      <p className="text-[11px] text-blue-500 font-bold uppercase tracking-wider">Coleta (IRS)</p>
+                      <p className="text-lg font-extrabold text-blue-700 mt-1">{irsResult.coleta.toFixed(2)}€</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-2xl border text-center">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Imposto devido</p>
+                      <p className="text-lg font-extrabold text-gray-900 mt-1">{irsResult.impostoDevido.toFixed(2)}€</p>
+                    </div>
+                    <div className={`p-4 rounded-2xl border text-center ${irsResult.saldo >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">{irsResult.saldo >= 0 ? 'Reembolso' : 'A pagar'}</p>
+                      <p className={`text-xl font-extrabold mt-1 ${irsResult.saldo >= 0 ? 'text-green-700' : 'text-red-700'}`}>{Math.abs(irsResult.saldo).toFixed(2)}€</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 px-1">
+                    <span>Dedução específica: <b className="text-gray-700">{irsResult.deducaoEspecifica.toFixed(2)}€</b></span>
+                    <span>Taxa efetiva de IRS: <b className="text-gray-700">{irsResult.taxaEfetiva.toFixed(1)}%</b></span>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 border-t pt-3">
+                Estimativa para <b>um titular</b>, trabalho dependente, Continente, {IRS_ANO}. Não cobre tributação conjunta
+                (casados/unidos de facto), quociente familiar, mínimo de existência, outras categorias de rendimento nem
+                limites das deduções à coleta. Para o valor oficial use o simulador da AT. Não é aconselhamento fiscal.
               </p>
             </div>
           </div>
