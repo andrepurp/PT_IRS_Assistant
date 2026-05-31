@@ -88,13 +88,17 @@ export default function App() {
   };
 
   // Relatório dos ativos PORTUGUESES para preenchimento manual do Anexo G (Quadro 9).
+  // Colunas alinhadas com o formulário: Titular, NIF da entidade emitente, Código, Realização
+  // (Ano/Mês/Dia/Valor), Aquisição (Ano/Mês/Dia/Valor), Despesas, País contraparte, Admitido a
+  // negociação. NIF da entidade emitente fica em branco (tem de ser preenchido manualmente).
   const downloadAnexoGCSV = () => {
-    let csv = 'Codigo;Pais_Contraparte;Ano_Realizacao;Mes_Realizacao;Valor_Realizacao;Ano_Aquisicao;Mes_Aquisicao;Valor_Aquisicao;Despesas;ISIN;Produto\n';
+    const n = (v) => parseInt(v, 10);
+    let csv = 'Titular;NIF_Entidade_Emitente;Codigo;Ano_Realizacao;Mes_Realizacao;Dia_Realizacao;Valor_Realizacao;Ano_Aquisicao;Mes_Aquisicao;Dia_Aquisicao;Valor_Aquisicao;Despesas;Pais_Contraparte;Admitido_Negociacao;ISIN;Produto\n';
     anexoGGains.forEach((g) => {
-      const [ra, rm] = g.dataRealizacao.split('-');
-      const [aa, am] = g.dataAquisicao.split('-');
+      const [ra, rm, rd] = g.dataRealizacao.split('-');
+      const [aa, am, ad] = g.dataAquisicao.split('-');
       const pais = isinToCodPais(g.isin); // PT -> 620
-      csv += `${g.codigo};${pais.code};${ra};${parseInt(rm, 10)};${g.valorRealizacao.replace('.', ',')};${aa};${parseInt(am, 10)};${g.valorAquisicao.replace('.', ',')};${g.despesas.replace('.', ',')};${g.isin};"${g.produto}"\n`;
+      csv += `A;;${g.codigo};${ra};${n(rm)};${n(rd)};${g.valorRealizacao.replace('.', ',')};${aa};${n(am)};${n(ad)};${g.valorAquisicao.replace('.', ',')};${g.despesas.replace('.', ',')};${pais.code};S;${g.isin};"${g.produto}"\n`;
     });
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
