@@ -1,70 +1,58 @@
-# Getting Started with Create React App
+# Assistente de IRS — Mais-Valias & Anexo J
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Ferramenta **100% local (client-side)** para investidores residentes em Portugal que usam
+corretoras estrangeiras (DEGIRO, Trading 212, XTB, …). Calcula as mais-valias por **FIFO** a
+partir do CSV de transações da corretora e gera o **XML do Anexo J (Quadro 9.2-A)** pronto a
+importar no Portal das Finanças.
 
-## Available Scripts
+Nenhum ficheiro ou dado financeiro é enviado para qualquer servidor — todo o processamento
+acontece no browser.
 
-In the project directory, you can run:
+## Como funciona
 
-### `npm start`
+1. **Mais-Valias** → carregue o CSV de transações da sua corretora (histórico completo, desde a
+   abertura da conta, para o FIFO encontrar as compras antigas).
+2. A app calcula os pares compra/venda por FIFO e mostra as mais-valias por ano fiscal, mais
+   avisos para vendas sem compra correspondente e para eventos societários (splits/fusões).
+3. No Portal das Finanças, inicie a declaração Modelo 3, **adicione o Anexo J** e **grave-a num
+   ficheiro XML**.
+4. Carregue esse XML na app e clique em **Gerar XML do Anexo J**. As suas mais-valias são
+   **fundidas** no Quadro 9.2-A, preservando o resto da declaração.
+5. **Importe o XML gerado** no Portal. ⚠️ A importação **substitui** a declaração atual — por isso
+   partimos sempre do seu próprio ficheiro exportado.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+> ⚠️ O Portal das Finanças **não importa CSV** para o IRS — só importa o XML da declaração Modelo 3.
+> A exportação CSV desta app serve apenas como **folha de conferência / preenchimento manual**.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Códigos
 
-### `npm test`
+- **G01** — ações e outros valores mobiliários.
+- **G20** — unidades de participação em fundos / ETFs.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+O código é inferido pelo nome do produto e pode ser alterado manualmente em cada linha.
 
-### `npm run build`
+## Limitações conhecidas
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **Imposto pago no estrangeiro** (coluna C04) é exportado a 0. Raro em mais-valias; se aplicável,
+  preencha-o manualmente no Portal.
+- **Eventos societários** (splits/fusões) são sinalizados mas não ajustados automaticamente —
+  reveja os ativos afetados.
+- A deteção de compra/venda cobre DEGIRO (sinal da quantidade/valor) e brokers com coluna de
+  sentido (Trading 212 "Action"). Outros formatos podem precisar de validação.
+- A app é um **auxiliar de cálculo e não constitui aconselhamento fiscal**. Confirme sempre os
+  valores antes de submeter.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Desenvolvimento
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+npm install
+npm start     # http://localhost:3000
+npm test      # testes (gains, anexoJ, App)
+npm run build # build de produção
+```
 
-### `npm run eject`
+A lógica está separada da UI para ser testável:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- [`src/gains.js`](src/gains.js) — parsing de CSV e cálculo FIFO.
+- [`src/anexoJ.js`](src/anexoJ.js) — fusão das mais-valias no XML do Anexo J + tabela de países.
+- [`src/App.js`](src/App.js) — interface.
