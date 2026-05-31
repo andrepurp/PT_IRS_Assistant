@@ -97,6 +97,11 @@ export const parseCSV = (text) => {
   // Coluna explícita de sentido da operação (Trading 212 "Action", XTB "Type", etc.)
   const idxSide = findPriorityIndex([['action', 'sentido', 'operação', 'operacao', 'buy/sell', 'compra/venda'], ['tipo', 'type']]);
 
+  // Só precisamos das colunas que efetivamente lemos. Alguns ficheiros (ex.: DEGIRO) exportam
+  // linhas com número de colunas variável — exigir row.length === headers.length descartaria
+  // silenciosamente linhas válidas. Basta a linha ter as colunas essenciais.
+  const maxIdx = Math.max(idxDate, idxProduct, idxIsin, idxQty, idxPrice, idxValue, idxFees, idxSide);
+
   const splitRow = (line) => {
     const row = [];
     let current = '';
@@ -121,7 +126,7 @@ export const parseCSV = (text) => {
 
   for (let i = 1; i < lines.length; i++) {
     const row = splitRow(lines[i]);
-    if (row.length < headers.length) continue;
+    if (row.length <= maxIdx) continue; // linha não tem sequer as colunas essenciais
 
     const rawDate = row[idxDate];
     const isin = row[idxIsin]?.trim().toUpperCase();

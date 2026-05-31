@@ -103,6 +103,35 @@ test('getTaxCode classifies ETFs/funds as G20 and shares as G01', () => {
   expect(getTaxCode('Apple Inc', 'US0378331005')).toBe('G01');
 });
 
+// Regressão: a DEGIRO exporta linhas com nº de colunas variável (17 vs 18). Linhas mais
+// antigas (Order ID logo a seguir ao Total) têm menos uma coluna que o cabeçalho. O parser
+// não pode descartá-las — caso contrário perde todo o histórico antigo e o FIFO falha.
+const DEGIRO_RAGGED = [
+  'Date,Time,Product,ISIN,Reference exchange,Venue,Quantity,Price,,Local value,,Value EUR,Exchange rate,AutoFX Fee,Transaction and/or third party fees EUR,Total EUR,Order ID,',
+  '29-10-2024,15:20,VOLKSWAGEN AG PREFERRED,DE0007664039,XET,XETA,-23,"89,5400",EUR,"2059,42",EUR,"2059,42",,"0,00","-4,90","2054,52",,269a6fcb', // 18 colunas (venda)
+  '02-09-2024,14:08,VOLKSWAGEN AG PREFERRED,DE0007664039,XET,XETA,3,"95,9200",EUR,"-287,76",EUR,"-287,76",,"0,00","-4,90","-292,66",,f8c22a01', // 18 colunas (compra)
+  '08-08-2024,15:48,VOLKSWAGEN AG PREFERRED,DE0007664039,XET,XETA,20,"93,8000",EUR,"-1876,00",EUR,"-1876,00",,"0,00","-4,90","-1880,90",138a4747', // 17 colunas (compra)
+].join('\n');
+
+test('parseCSV keeps rows with fewer columns than the header (DEGIRO ragged export)', () => {
+  const { transactions } = parseCSV(DEGIRO_RAGGED);
+  expect(transactions).toHaveLength(3); // a compra de 20 (17 colunas) NÃO pode ser descartada
+  const buy20 = transactions.find((t) => t.qty === 20);
+  expect(buy20).toBeTruthy();
+  expect(buy20.valueEur).toBe(-1876);
+});
+
+test('computeGains fully matches the VW sale once the 20-share buy is kept', () => {
+  const { realizations, unmatched } = computeGains(parseCSV(DEGIRO_RAGGED).transactions, seqId());
+  expect(unmatched).toHaveLength(0); // antes do fix: 20 ações ficavam por corresponder
+  const totalQtyMatched = realizations.length; // 2 lotes: 20 + 3
+  expect(totalQtyMatched).toBe(2);
+  const totalVenda = realizations.reduce((s, r) => s + parseFloat(r.valorRealizacao), 0);
+  expect(totalVenda).toBeCloseTo(2059.42, 1);
+  const totalCompra = realizations.reduce((s, r) => s + parseFloat(r.valorAquisicao), 0);
+  expect(totalCompra).toBeCloseTo(2163.76, 1); // 1876.00 + 287.76
+});
+
 test('isPortugueseIsin detects PT-registered securities (Anexo G, not J)', () => {
   expect(isPortugueseIsin('PTGAL0AM0009')).toBe(true);
   expect(isPortugueseIsin('US0378331005')).toBe(false);
